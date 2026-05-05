@@ -17,7 +17,7 @@ public static class Lzma2Codec
     /// <summary>Compress a stream using LZMA2. Writes a 1-byte property header then compressed data.</summary>
     public static void Compress(Stream input, Stream output, int level = 5)
     {
-        var lib = ZevenLibrary.Load("");
+        var lib = ZevenLibrary.Instance;
         int codecIndex = lib.FindCodecIndex(Lzma2CodecId);
         if (codecIndex < 0)
         {
@@ -74,7 +74,7 @@ public static class Lzma2Codec
             throw new InvalidDataException("Unexpected end of stream reading LZMA2 property byte");
         }
 
-        var lib = ZevenLibrary.Load("");
+        var lib = ZevenLibrary.Instance;
         int codecIndex = lib.FindCodecIndex(Lzma2CodecId);
         if (codecIndex < 0)
         {

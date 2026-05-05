@@ -161,7 +161,7 @@ public class Lzma2Stream : Stream
 
     private void InitDecompress()
     {
-        var lib = ZevenLibrary.Load("");
+        var lib = ZevenLibrary.Instance;
         int codecIndex = lib.FindCodecIndex(0x21);
         if (codecIndex < 0)
         {

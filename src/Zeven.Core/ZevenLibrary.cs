@@ -57,9 +57,6 @@ public sealed class ZevenLibrary : IDisposable
     /// Load a 7-Zip native DLL and return the library instance.
     /// The DLL is loaded once; subsequent calls return the same instance.
     /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown if called a second time with a different path.
-    /// </exception>
     public static ZevenLibrary Load(string dllPath)
     {
         lock (syncLock)
@@ -70,6 +67,24 @@ public sealed class ZevenLibrary : IDisposable
             }
             instance = new ZevenLibrary(Path.GetFullPath(dllPath));
             return instance;
+        }
+    }
+
+    /// <summary>
+    /// Get the already-loaded library instance.
+    /// Throws if <see cref="Load"/> has not been called yet.
+    /// </summary>
+    public static ZevenLibrary Instance
+    {
+        get
+        {
+            var inst = instance;
+            if (inst == null)
+            {
+                throw new InvalidOperationException(
+                    "ZevenLibrary has not been loaded. Call ZevenLibrary.Load(dllPath) first.");
+            }
+            return inst;
         }
     }
 
