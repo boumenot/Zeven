@@ -46,6 +46,38 @@ public sealed class SevenZipLibrary : IDisposable
 
     public StrategyBasedComWrappers ComWrappers => _comWrappers;
 
+    /// <summary>Create a .7z archive from in-memory file data.</summary>
+    public void CreateArchive(Guid classId, Stream outputStream, Dictionary<string, byte[]> files)
+    {
+        Guid iid = new("23170F69-40C1-278A-0000-000600A00000"); // IID_IOutArchive
+        int hr = _createObject(in classId, in iid, out nint ptr);
+        Marshal.ThrowExceptionForHR(hr);
+
+        var outArchive = (IOutArchive)_comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
+
+        var outWrapper = new OutStreamWrapper(outputStream);
+        var updateCallback = new UpdateCallback(files, _comWrappers);
+
+        nint outCcw = _comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
+        Guid iidOutStream = new("23170F69-40C1-278A-0000-000300040000"); // IOutStream (seekable)
+        Marshal.QueryInterface(outCcw, ref iidOutStream, out nint outPtr);
+
+        nint cbCcw = _comWrappers.GetOrCreateComInterfaceForObject(updateCallback, CreateComInterfaceFlags.None);
+        Guid iidUpdateCb = new("23170F69-40C1-278A-0000-000600800000");
+        Marshal.QueryInterface(cbCcw, ref iidUpdateCb, out nint cbPtr);
+
+        hr = outArchive.UpdateItems(outPtr, (uint)files.Count, cbPtr);
+
+        if (outPtr != nint.Zero) Marshal.Release(outPtr);
+        if (cbPtr != nint.Zero) Marshal.Release(cbPtr);
+        Marshal.Release(outCcw);
+        Marshal.Release(cbCcw);
+        GC.KeepAlive(outWrapper);
+        GC.KeepAlive(updateCallback);
+
+        Marshal.ThrowExceptionForHR(hr);
+    }
+
     private static List<ArchiveFormat> LoadFormats(
         GetNumberOfFormatsFunc getNumberOfFormats,
         GetHandlerProperty2Func getHandlerProperty2)
@@ -91,7 +123,8 @@ public sealed class SevenZipLibrary : IDisposable
     {
         if (!_disposed)
         {
-            NativeLibrary.Free(_lib);
+            // Don't call NativeLibrary.Free — COM objects may still reference
+            // the DLL's vtables. The OS unloads it at process exit.
             _disposed = true;
         }
     }
@@ -153,7 +186,7 @@ public sealed class ArchiveHandle : IDisposable
     /// <summary>Extract all files to memory. Returns dict of path → byte[].</summary>
     public Dictionary<string, byte[]> ExtractAll()
     {
-        var callback = new ExtractCallback(Archive);
+        var callback = new ExtractCallback(Archive, ComWrappers);
         CallExtract(null, 0, callback);
 
         // Map index→bytes to path→bytes
@@ -174,7 +207,7 @@ public sealed class ArchiveHandle : IDisposable
     /// <summary>Extract specific items by index. Returns dict of index → byte[].</summary>
     public Dictionary<uint, byte[]> Extract(uint[] indices)
     {
-        var callback = new ExtractCallback(Archive);
+        var callback = new ExtractCallback(Archive, ComWrappers);
         CallExtract(indices, 0, callback);
         return callback.ExtractedData;
     }
@@ -182,7 +215,7 @@ public sealed class ArchiveHandle : IDisposable
     /// <summary>Test archive integrity (extract in verify-only mode).</summary>
     public void Test()
     {
-        var callback = new ExtractCallback(Archive);
+        var callback = new ExtractCallback(Archive, ComWrappers);
         // numItems = 0xFFFFFFFF means "all", testMode = 1
         CallExtract(null, 1, callback);
     }

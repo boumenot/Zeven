@@ -25,8 +25,9 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         Assert.Equal(_fixture.OriginalFiles.Count, extracted.Count);
         foreach (var (name, expectedBytes) in _fixture.OriginalFiles)
         {
-            Assert.True(extracted.ContainsKey(name), $"Missing: {name}");
-            Assert.Equal(expectedBytes, extracted[name]);
+            // 7-Zip normalizes path separators
+            var key = extracted.Keys.First(k => k.Replace('\\', '/') == name.Replace('\\', '/'));
+            Assert.Equal(expectedBytes, extracted[key]);
         }
     }
 

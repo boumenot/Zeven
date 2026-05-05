@@ -67,10 +67,10 @@ public partial class ArchiveOpenCallback : IArchiveOpenCallback
 }
 
 /// <summary>
-/// Managed ISequentialOutStream wrapping a .NET Stream.
+/// Managed IOutStream wrapping a .NET Stream (seekable).
 /// </summary>
 [GeneratedComClass]
-public partial class OutStreamWrapper : ISequentialOutStream
+public partial class OutStreamWrapper : IOutStream
 {
     private readonly Stream _stream;
     public OutStreamWrapper(Stream stream) => _stream = stream;
@@ -86,6 +86,23 @@ public partial class OutStreamWrapper : ISequentialOutStream
         }
         return 0;
     }
+
+    public int Seek(long offset, uint seekOrigin, nint newPosition)
+    {
+        ulong pos = (ulong)_stream.Seek(offset, (SeekOrigin)seekOrigin);
+        unsafe
+        {
+            if (newPosition != nint.Zero)
+                *(ulong*)newPosition = pos;
+        }
+        return 0;
+    }
+
+    public int SetSize(ulong newSize)
+    {
+        _stream.SetLength((long)newSize);
+        return 0;
+    }
 }
 
 /// <summary>
@@ -96,13 +113,19 @@ public partial class OutStreamWrapper : ISequentialOutStream
 public partial class ExtractCallback : IArchiveExtractCallback
 {
     private readonly IInArchive _archive;
+    private readonly StrategyBasedComWrappers _cw;
     private uint _currentIndex;
     private MemoryStream? _currentStream;
+    private readonly List<object> _liveObjects = new();
 
     /// <summary>Extracted data keyed by archive item index.</summary>
     public Dictionary<uint, byte[]> ExtractedData { get; } = new();
 
-    public ExtractCallback(IInArchive archive) => _archive = archive;
+    public ExtractCallback(IInArchive archive, StrategyBasedComWrappers cw)
+    {
+        _archive = archive;
+        _cw = cw;
+    }
 
     // IProgress
     public int SetTotal(ulong total) => 0;
@@ -127,11 +150,9 @@ public partial class ExtractCallback : IArchiveExtractCallback
 
         _currentStream = new MemoryStream();
         var wrapper = new OutStreamWrapper(_currentStream);
+        _liveObjects.Add(wrapper);
 
-        // Create CCW — we need a StrategyBasedComWrappers for this
-        // Use a static instance since we don't have the handle's instance here
-        var cw = new StrategyBasedComWrappers();
-        nint ccw = cw.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
+        nint ccw = _cw.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
         Guid iid = new("23170F69-40C1-278A-0000-000300020000"); // IID_ISequentialOutStream
         Marshal.QueryInterface(ccw, ref iid, out outStream);
         Marshal.Release(ccw);
@@ -150,4 +171,85 @@ public partial class ExtractCallback : IArchiveExtractCallback
         }
         return 0;
     }
+}
+
+/// <summary>
+/// Archive creation callback that provides file data from in-memory byte arrays.
+/// </summary>
+[GeneratedComClass]
+public partial class UpdateCallback : IArchiveUpdateCallback
+{
+    private readonly List<(string Path, byte[] Data)> _items;
+    private readonly StrategyBasedComWrappers _cw;
+    private readonly List<object> _liveObjects = new();
+
+    public UpdateCallback(Dictionary<string, byte[]> files, StrategyBasedComWrappers cw)
+    {
+        _items = files.Select(kv => (kv.Key, kv.Value)).ToList();
+        _cw = cw;
+    }
+
+    // IProgress
+    public int SetTotal(ulong total) => 0;
+    public int SetCompleted(nint completeValue) => 0;
+
+    public int GetUpdateItemInfo(uint index, out int newData, out int newProps, out uint indexInArchive)
+    {
+        newData = 1;
+        newProps = 1;
+        indexInArchive = unchecked((uint)-1); // no existing item
+        return 0;
+    }
+
+    public int GetProperty(uint index, uint propID, ref PropVariant value)
+    {
+        value = default;
+        var (path, data) = _items[(int)index];
+
+        switch (propID)
+        {
+            case PropId.kpidPath:
+                value.VarType = PropVariant.VT_BSTR;
+                value.PointerValue = Marshal.StringToBSTR(path);
+                break;
+            case PropId.kpidIsDir:
+                value.VarType = PropVariant.VT_BOOL;
+                value.BoolValue = 0; // false
+                break;
+            case PropId.kpidSize:
+                value.VarType = PropVariant.VT_UI8;
+                value.ULongValue = (ulong)data.Length;
+                break;
+            case PropId.kpidAttrib:
+                value.VarType = PropVariant.VT_UI4;
+                value.UIntValue = 0x20; // FILE_ATTRIBUTE_ARCHIVE
+                break;
+            case PropId.kpidMTime:
+                value.VarType = PropVariant.VT_FILETIME;
+                value.LongValue = DateTime.UtcNow.ToFileTimeUtc();
+                break;
+            case 21: // kpidIsAnti
+                value.VarType = PropVariant.VT_BOOL;
+                value.BoolValue = 0;
+                break;
+        }
+        return 0;
+    }
+
+    public int GetStream(uint index, out nint inStream)
+    {
+        var data = _items[(int)index].Data;
+        var ms = new MemoryStream(data, writable: false);
+        var wrapper = new InStreamWrapper(ms);
+        _liveObjects.Add(ms);
+        _liveObjects.Add(wrapper);
+
+        nint ccw = _cw.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
+        Guid iid = new("23170F69-40C1-278A-0000-000300010000"); // IID_ISequentialInStream
+        Marshal.QueryInterface(ccw, ref iid, out inStream);
+        Marshal.Release(ccw);
+        return 0;
+    }
+
+    public int SetOperationResult(int operationResult) => 0;
 }

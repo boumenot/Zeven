@@ -33,6 +33,18 @@ public partial interface ISequentialOutStream
     int Write(nint data, uint size, out uint processedSize);
 }
 
+/// <summary>IOutStream — adds seeking and resizing to ISequentialOutStream.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000300040000")]
+public partial interface IOutStream : ISequentialOutStream
+{
+    [PreserveSig]
+    int Seek(long offset, uint seekOrigin, nint newPosition);
+
+    [PreserveSig]
+    int SetSize(ulong newSize);
+}
+
 // ── Progress ────────────────────────────────────────────────────────────────
 
 /// <summary>IProgress — base progress interface (group=0, sub=5).</summary>
@@ -117,4 +129,49 @@ public partial interface IInArchive
 
     [PreserveSig]
     int GetArchivePropertyInfo(uint index, out nint name, out uint propID, out ushort varType);
+}
+
+// ── IOutArchive ─────────────────────────────────────────────────────────────
+
+/// <summary>IOutArchive — creates/updates archives.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000600A00000")]
+public partial interface IOutArchive
+{
+    [PreserveSig]
+    int UpdateItems(nint outStream, uint numItems, nint updateCallback);
+
+    [PreserveSig]
+    int GetFileTimeType(out uint type);
+}
+
+// ── ISetProperties ──────────────────────────────────────────────────────────
+
+/// <summary>ISetProperties — configures compression options.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000600030000")]
+public partial interface ISetProperties
+{
+    [PreserveSig]
+    int SetProperties(nint names, nint values, uint numProps);
+}
+
+// ── Archive update callbacks ────────────────────────────────────────────────
+
+/// <summary>IArchiveUpdateCallback — provides file data during archive creation.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000600800000")]
+public partial interface IArchiveUpdateCallback : IProgress
+{
+    [PreserveSig]
+    int GetUpdateItemInfo(uint index, out int newData, out int newProps, out uint indexInArchive);
+
+    [PreserveSig]
+    int GetProperty(uint index, uint propID, ref PropVariant value);
+
+    [PreserveSig]
+    int GetStream(uint index, out nint inStream);
+
+    [PreserveSig]
+    int SetOperationResult(int operationResult);
 }
