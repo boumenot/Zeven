@@ -103,14 +103,50 @@ public sealed class ArchiveHandle : IDisposable
     public IInArchive Archive { get; }
     public StrategyBasedComWrappers ComWrappers { get; }
 
+    // prevent GC of managed COM wrappers while native code holds references
+    private InStreamWrapper? _streamWrapper;
+    private ArchiveOpenCallback? _openCallback;
+
     internal ArchiveHandle(IInArchive archive, StrategyBasedComWrappers comWrappers)
     {
         Archive = archive;
         ComWrappers = comWrappers;
     }
 
+    /// <summary>Open an archive from the given stream.</summary>
+    public void Open(Stream stream, ulong maxCheckStartPosition = 1 << 23)
+    {
+        _streamWrapper = new InStreamWrapper(stream);
+        _openCallback = new ArchiveOpenCallback();
+
+        nint streamCcw = ComWrappers.GetOrCreateComInterfaceForObject(_streamWrapper, CreateComInterfaceFlags.None);
+        Guid iidInStream = new("23170F69-40C1-278A-0000-000300030000");
+        Marshal.QueryInterface(streamCcw, ref iidInStream, out nint streamPtr);
+
+        nint callbackCcw = ComWrappers.GetOrCreateComInterfaceForObject(_openCallback, CreateComInterfaceFlags.None);
+        Guid iidCallback = new("23170F69-40C1-278A-0000-000600100000");
+        Marshal.QueryInterface(callbackCcw, ref iidCallback, out nint callbackPtr);
+
+        int hr;
+        unsafe
+        {
+            ulong scanSize = maxCheckStartPosition;
+            hr = Archive.Open(streamPtr, (nint)(&scanSize), callbackPtr);
+        }
+
+        // Release our QI references
+        if (streamPtr != nint.Zero) Marshal.Release(streamPtr);
+        if (callbackPtr != nint.Zero) Marshal.Release(callbackPtr);
+        Marshal.Release(streamCcw);
+        Marshal.Release(callbackCcw);
+
+        Marshal.ThrowExceptionForHR(hr);
+    }
+
     public void Dispose()
     {
         Archive.Close();
+        _streamWrapper = null;
+        _openCallback = null;
     }
 }
