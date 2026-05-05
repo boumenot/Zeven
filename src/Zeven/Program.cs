@@ -11,10 +11,8 @@ using Zeven.Core.Interop;
 const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
 const string ExePath = @"q:\7z2601-bin\x64\7za.exe";
 
-// 7z format CLSID: {23170F69-40C1-278A-1000-000110070000}
-Guid clsid7z = new("23170F69-40C1-278A-1000-000110070000");
-// IInArchive IID
-Guid iidInArchive = new("23170F69-40C1-278A-0000-000600600000");
+Guid clsid7z = FormatClsid.SevenZip;
+Guid iidInArchive = Iid.IInArchive;
 
 // ── Load native DLL and resolve exports ─────────────────────────────────────
 
@@ -124,11 +122,11 @@ var openCallback = new ArchiveOpenCallback();
 
 // Create COM Callable Wrappers (CCW) for managed objects and QI for the right interface
 nint streamCcw = comWrappers.GetOrCreateComInterfaceForObject(inStream, CreateComInterfaceFlags.None);
-Guid iidInStream = new("23170F69-40C1-278A-0000-000300030000");
+Guid iidInStream = Iid.IInStream;
 Marshal.QueryInterface(streamCcw, ref iidInStream, out nint streamPtr);
 
 nint callbackCcw = comWrappers.GetOrCreateComInterfaceForObject(openCallback, CreateComInterfaceFlags.None);
-Guid iidCallback = new("23170F69-40C1-278A-0000-000600100000");
+Guid iidCallback = Iid.IArchiveOpenCallback;
 Marshal.QueryInterface(callbackCcw, ref iidCallback, out nint callbackPtr);
 
 unsafe

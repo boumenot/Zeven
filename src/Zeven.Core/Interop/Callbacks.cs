@@ -189,7 +189,7 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
         this.liveObjects.Add(wrapper);
 
         nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
-        Guid iid = new("23170F69-40C1-278A-0000-000300020000"); // IID_ISequentialOutStream
+        Guid iid = Iid.ISequentialOutStream;
         Marshal.QueryInterface(ccw, ref iid, out outStream);
         Marshal.Release(ccw);
         return 0;
@@ -298,7 +298,7 @@ public partial class UpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPass
         this.liveObjects.Add(wrapper);
 
         nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
-        Guid iid = new("23170F69-40C1-278A-0000-000300010000"); // IID_ISequentialInStream
+        Guid iid = Iid.ISequentialInStream;
         Marshal.QueryInterface(ccw, ref iid, out inStream);
         Marshal.Release(ccw);
         return 0;

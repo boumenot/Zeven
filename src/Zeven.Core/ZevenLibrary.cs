@@ -63,7 +63,7 @@ public sealed class ZevenLibrary : IDisposable
     /// <summary>Create an IInArchive COM object for the given format CLSID.</summary>
     public ArchiveHandle CreateInArchive(Guid classId)
     {
-        Guid iid = new("23170F69-40C1-278A-0000-000600600000"); // IID_IInArchive
+        Guid iid = Iid.IInArchive;
         int hr = this.createObject(in classId, in iid, out nint ptr);
         Marshal.ThrowExceptionForHR(hr);
         var archive = (IInArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
@@ -75,7 +75,7 @@ public sealed class ZevenLibrary : IDisposable
     /// <summary>Create a .7z archive from in-memory file data.</summary>
     public void CreateArchive(Guid classId, Stream outputStream, Dictionary<string, byte[]> files, string? password = null)
     {
-        Guid iid = new("23170F69-40C1-278A-0000-000600A00000"); // IID_IOutArchive
+        Guid iid = Iid.IOutArchive;
         int hr = this.createObject(in classId, in iid, out nint ptr);
         Marshal.ThrowExceptionForHR(hr);
 
@@ -85,11 +85,11 @@ public sealed class ZevenLibrary : IDisposable
         var updateCallback = new UpdateCallback(files, this.comWrappers, password);
 
         nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
-        Guid iidOutStream = new("23170F69-40C1-278A-0000-000300040000"); // IOutStream (seekable)
+        Guid iidOutStream = Iid.IOutStream;
         Marshal.QueryInterface(outCcw, ref iidOutStream, out nint outPtr);
 
         nint cbCcw = this.comWrappers.GetOrCreateComInterfaceForObject(updateCallback, CreateComInterfaceFlags.None);
-        Guid iidUpdateCb = new("23170F69-40C1-278A-0000-000600800000");
+        Guid iidUpdateCb = Iid.IArchiveUpdateCallback;
         Marshal.QueryInterface(cbCcw, ref iidUpdateCb, out nint cbPtr);
 
         hr = outArchive.UpdateItems(outPtr, (uint)files.Count, cbPtr);
@@ -181,11 +181,11 @@ public sealed class ArchiveHandle : IDisposable
         this.openCallback = new ArchiveOpenCallback(password);
 
         nint streamCcw = this.ComWrappers.GetOrCreateComInterfaceForObject(this.streamWrapper, CreateComInterfaceFlags.None);
-        Guid iidInStream = new("23170F69-40C1-278A-0000-000300030000");
+        Guid iidInStream = Iid.IInStream;
         Marshal.QueryInterface(streamCcw, ref iidInStream, out nint streamPtr);
 
         nint callbackCcw = this.ComWrappers.GetOrCreateComInterfaceForObject(this.openCallback, CreateComInterfaceFlags.None);
-        Guid iidCallback = new("23170F69-40C1-278A-0000-000600100000");
+        Guid iidCallback = Iid.IArchiveOpenCallback;
         Marshal.QueryInterface(callbackCcw, ref iidCallback, out nint callbackPtr);
 
         int hr;
@@ -260,7 +260,7 @@ public sealed class ArchiveHandle : IDisposable
     {
         var cw = this.ComWrappers;
         nint callbackCcw = cw.GetOrCreateComInterfaceForObject(callback, CreateComInterfaceFlags.None);
-        Guid iidExtractCb = new("23170F69-40C1-278A-0000-000600200000");
+        Guid iidExtractCb = Iid.IArchiveExtractCallback;
         Marshal.QueryInterface(callbackCcw, ref iidExtractCb, out nint callbackPtr);
 
         int hr;
