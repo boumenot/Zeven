@@ -16,7 +16,7 @@ public class ArchiveCreateTests
             ["sub/data.bin"] = new byte[] { 0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD },
         };
 
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         // Create archive to MemoryStream
@@ -52,7 +52,7 @@ public class ArchiveCreateTests
             ["empty.txt"] = Array.Empty<byte>(),
         };
 
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         using var outStream = new MemoryStream();
@@ -81,7 +81,7 @@ public class ArchiveCreateTests
             ["large.bin"] = largeData,
         };
 
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         using var outStream = new MemoryStream();

@@ -14,7 +14,7 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
     [Fact]
     public void Extract_AllFiles_ProducesCorrectContent()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
         using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
@@ -34,7 +34,7 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
     [Fact]
     public void Extract_SingleFile_ProducesCorrectContent()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
         using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
@@ -61,7 +61,7 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
     [Fact]
     public void Extract_TestMode_DoesNotProduceOutput()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
         using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);

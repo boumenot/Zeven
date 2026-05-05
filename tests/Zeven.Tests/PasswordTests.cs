@@ -15,7 +15,7 @@ public class PasswordTests
         };
         const string password = "MyP@ssw0rd!";
 
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         // Create encrypted archive
@@ -43,7 +43,7 @@ public class PasswordTests
             ["secret.txt"] = "Top secret!"u8.ToArray(),
         };
 
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         byte[] archiveBytes;

@@ -9,7 +9,7 @@ public class DisposableTests
     [Fact]
     public void ArchiveHandle_CanBeUsedInUsingBlock()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         // Create a small archive
@@ -34,7 +34,7 @@ public class DisposableTests
     [Fact]
     public void MultipleArchives_CanOpenSimultaneously()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         byte[] archive1, archive2;

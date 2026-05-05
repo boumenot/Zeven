@@ -58,7 +58,7 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     [Fact]
     public void Open_FromMemoryStream_Succeeds()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
         using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
@@ -72,7 +72,7 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     [Fact]
     public void GetProperty_ReturnsCorrectPaths()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
         using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
@@ -95,7 +95,7 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     [Fact]
     public void GetProperty_ReturnsCorrectSizes()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
         using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);

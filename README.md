@@ -9,7 +9,7 @@ No COM registration, no IDL, no type libraries — just P/Invoke `CreateObject` 
 ```csharp
 using Zeven;
 
-using var lib = new ZevenLibrary(@"path\to\7z.dll");
+using var lib = ZevenLibrary.Load(@"path\to\7z.dll");
 var fmt = lib.Formats.First(f => f.Name == "7z");
 
 // Create an archive in memory

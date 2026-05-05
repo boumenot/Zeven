@@ -11,7 +11,8 @@ public record ArchiveFormat(string Name, string Extension, Guid ClassId, bool Ca
 
 /// <summary>
 /// Loads 7-Zip's native DLL, resolves exports, and provides factory methods
-/// for creating COM archive objects.
+/// for creating COM archive objects. Use <see cref="Load"/> to create an instance.
+/// The DLL is loaded once and kept for the lifetime of the process.
 /// </summary>
 public sealed class ZevenLibrary : IDisposable
 {
@@ -22,7 +23,7 @@ public sealed class ZevenLibrary : IDisposable
 
     public IReadOnlyList<ArchiveFormat> Formats { get; }
 
-    public ZevenLibrary(string dllPath)
+    private ZevenLibrary(string dllPath)
     {
         _lib = NativeLibrary.Load(dllPath);
 
@@ -35,6 +36,26 @@ public sealed class ZevenLibrary : IDisposable
 
         Formats = LoadFormats(getNumberOfFormats, getHandlerProperty2);
     }
+
+    /// <summary>
+    /// Load a 7-Zip native DLL and return a ready-to-use library instance.
+    /// The DLL is loaded once per path; repeated calls with the same path
+    /// return the same instance.
+    /// </summary>
+    public static ZevenLibrary Load(string dllPath)
+    {
+        string fullPath = Path.GetFullPath(dllPath);
+        lock (_instances)
+        {
+            if (_instances.TryGetValue(fullPath, out var existing))
+                return existing;
+            var lib = new ZevenLibrary(fullPath);
+            _instances[fullPath] = lib;
+            return lib;
+        }
+    }
+
+    private static readonly Dictionary<string, ZevenLibrary> _instances = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Create an IInArchive COM object for the given format CLSID.</summary>
     public ArchiveHandle CreateInArchive(Guid classId)

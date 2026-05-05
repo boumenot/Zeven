@@ -9,7 +9,7 @@ public class ZevenLibraryTests
     [Fact]
     public void Load_ReturnsInstanceWithFormats()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
 
         Assert.NotEmpty(lib.Formats);
         Assert.Contains(lib.Formats, f => f.Name == "7z");
@@ -18,7 +18,7 @@ public class ZevenLibraryTests
     [Fact]
     public void CreateInArchive_ReturnsNonNull()
     {
-        using var lib = new ZevenLibrary(DllPath);
+        using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         using var archive = lib.CreateInArchive(format.ClassId);
