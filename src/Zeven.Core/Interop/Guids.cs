@@ -18,6 +18,14 @@ public static class Iid
     public static readonly Guid IInArchive              = new("23170F69-40C1-278A-0000-000600600000");
     public static readonly Guid IArchiveUpdateCallback  = new("23170F69-40C1-278A-0000-000600800000");
     public static readonly Guid IOutArchive             = new("23170F69-40C1-278A-0000-000600A00000");
+
+    // Codec interfaces (group 04)
+    public static readonly Guid ICompressCoder               = new("23170F69-40C1-278A-0000-000400050000");
+    public static readonly Guid ICompressSetCoderProperties   = new("23170F69-40C1-278A-0000-000400200000");
+    public static readonly Guid ICompressSetDecoderProperties2 = new("23170F69-40C1-278A-0000-000400220000");
+    public static readonly Guid ICompressWriteCoderProperties = new("23170F69-40C1-278A-0000-000400230000");
+    public static readonly Guid ICompressSetInStream          = new("23170F69-40C1-278A-0000-000400310000");
+    public static readonly Guid ICompressSetOutStreamSize     = new("23170F69-40C1-278A-0000-000400340000");
 }
 
 /// <summary>

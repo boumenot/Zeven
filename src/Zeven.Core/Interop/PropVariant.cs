@@ -92,3 +92,35 @@ public static class HandlerPropId
     public const uint kExtension  = 2;
     public const uint kUpdate     = 4;
 }
+
+/// <summary>Codec property IDs (NCoderPropID::EEnum from ICoder.h).</summary>
+public static class CoderPropId
+{
+    public const uint DefaultProp    = 0;
+    public const uint DictionarySize = 1;
+    public const uint UsedMemorySize = 2;
+    public const uint Order          = 3;
+    public const uint BlockSize      = 4;
+    public const uint NumFastBytes   = 8;
+    public const uint NumPasses      = 11;
+    public const uint Algorithm      = 12;
+    public const uint NumThreads     = 13;
+    public const uint EndMarker      = 14;
+    public const uint Level          = 15;
+    public const uint ReduceSize     = 16;
+}
+
+/// <summary>Codec method property IDs used with GetMethodProperty.</summary>
+public static class MethodPropId
+{
+    public const uint Id            = 0;  // VT_UI8 — codec ID (e.g., 0x21 for LZMA2)
+    public const uint Name          = 1;  // VT_BSTR
+    public const uint Decoder       = 2;  // VT_BSTR (binary GUID)
+    public const uint Encoder       = 3;  // VT_BSTR (binary GUID)
+    public const uint PackStreams    = 4;  // VT_UI4
+    public const uint UnpackStreams  = 5;  // VT_UI4
+    public const uint Description   = 6;  // VT_BSTR
+    public const uint DecoderIsAssigned = 7; // VT_BOOL
+    public const uint EncoderIsAssigned = 8; // VT_BOOL
+    public const uint DigestSize    = 9;  // VT_UI4
+}

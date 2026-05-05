@@ -195,3 +195,62 @@ public partial interface ICryptoGetTextPassword2
     [PreserveSig]
     int CryptoGetTextPassword2(out int passwordIsDefined, out nint password); // BSTR*
 }
+
+// ── Codec interfaces (group 04) ─────────────────────────────────────────────
+
+/// <summary>ICompressCoder — batch encode/decode an entire stream.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000400050000")]
+public partial interface ICompressCoder
+{
+    [PreserveSig]
+    int Code(nint inStream, nint outStream, nint inSize, nint outSize, nint progress);
+}
+
+/// <summary>ICompressSetCoderProperties — set compression properties before encoding.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000400200000")]
+public partial interface ICompressSetCoderProperties
+{
+    [PreserveSig]
+    int SetCoderProperties(nint propIDs, nint props, uint numProps);
+}
+
+/// <summary>ICompressSetDecoderProperties2 — set decoder properties from header bytes.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000400220000")]
+public partial interface ICompressSetDecoderProperties2
+{
+    [PreserveSig]
+    int SetDecoderProperties2(nint data, uint size);
+}
+
+/// <summary>ICompressWriteCoderProperties — write encoder property header to stream.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000400230000")]
+public partial interface ICompressWriteCoderProperties
+{
+    [PreserveSig]
+    int WriteCoderProperties(nint outStream);
+}
+
+/// <summary>ICompressSetInStream — set input stream for stream-mode decoding.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000400310000")]
+public partial interface ICompressSetInStream
+{
+    [PreserveSig]
+    int SetInStream(nint inStream);
+
+    [PreserveSig]
+    int ReleaseInStream();
+}
+
+/// <summary>ICompressSetOutStreamSize — initialize decoder for stream-mode.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000400340000")]
+public partial interface ICompressSetOutStreamSize
+{
+    [PreserveSig]
+    int SetOutStreamSize(nint outSize); // const UInt64* — NULL means unknown
+}
