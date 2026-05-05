@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 
+#pragma warning disable CS9191 // Marshal.QueryInterface takes ref Guid, not in Guid
+
 namespace SevenZipNet.Interop;
 
 /// <summary>

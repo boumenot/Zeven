@@ -2,6 +2,8 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using SevenZipNet.Interop;
 
+#pragma warning disable CS9191 // Marshal.QueryInterface takes ref Guid, not in Guid
+
 namespace SevenZipNet;
 
 /// <summary>Metadata about a supported archive format.</summary>
@@ -180,10 +182,15 @@ public sealed class ArchiveHandle : IDisposable
 
     public void Dispose()
     {
-        Archive.Close();
-        _streamWrapper = null;
-        _openCallback = null;
+        if (!_disposed)
+        {
+            _disposed = true;
+            Archive.Close();
+            _streamWrapper = null;
+            _openCallback = null;
+        }
     }
+    private bool _disposed;
 
     /// <summary>Extract all files to memory. Returns dict of path → byte[].</summary>
     public Dictionary<string, byte[]> ExtractAll()
