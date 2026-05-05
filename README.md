@@ -58,19 +58,79 @@ var extracted = handle.ExtractAll(); // Dict<string, byte[]>
 
 - A **codec** is a compression/encryption algorithm (e.g., LZMA2, Deflate, PPMd, AES). Codecs are used *inside* format handlers. A format like `.7z` can use many different codecs.
 
-This distinction matters in practice:
+This distinction matters because a name like "PPMd" or "LZMA" can refer to *either* a standalone container format *or* a compression codec used inside another format — and the read/write support differs:
 
-| Name | As a **format** (`.pmd` container) | As a **codec** inside `.7z` |
-|---|---|---|
-| PPMd | ✅ Read / ❌ Write | ✅ Read / ✅ Write (`-m0=PPMd`) |
-| LZMA | ✅ Read / ❌ Write (`.lzma`) | ✅ Read / ✅ Write (`-m0=LZMA`) |
-| BZip2 | ✅ Read / ✅ Write (`.bz2`) | ✅ Read / ✅ Write |
-| Deflate | — (no standalone format) | ✅ Read / ✅ Write |
-| zstd | ✅ Read / ❌ Write (`.zst`) | — (not a 7z codec) |
+| Name | As a standalone **format** | Format extensions | As a **codec** inside `.7z` |
+|---|---|---|---|
+| 7z | ✅ Read / ✅ Write | `.7z` | — (this *is* the container) |
+| Zip | ✅ Read / ✅ Write | `.zip .jar .docx .xlsx .epub` | — |
+| Tar | ✅ Read / ✅ Write | `.tar .ova` | — |
+| GZip | ✅ Read / ✅ Write | `.gz .tgz` | — |
+| BZip2 | ✅ Read / ✅ Write | `.bz2 .tbz2` | ✅ Read / ✅ Write |
+| xz | ✅ Read / ✅ Write | `.xz .txz` | — |
+| wim | ✅ Read / ✅ Write | `.wim .swm .esd` | — |
+| PPMd | ✅ Read / ❌ **Write** | `.pmd` | ✅ Read / ✅ Write (`-m0=PPMd`) |
+| LZMA | ✅ Read / ❌ **Write** | `.lzma` | ✅ Read / ✅ Write (`-m0=LZMA`) |
+| LZMA86 | ✅ Read / ❌ **Write** | `.lzma86` | — |
+| zstd | ✅ Read / ❌ **Write** | `.zst .tzst` | — (not a 7z codec) |
+| Rar | ✅ Read / ❌ **Write** | `.rar` | — |
+| Rar5 | ✅ Read / ❌ **Write** | `.rar` | — |
+| Cab | ✅ Read / ❌ **Write** | `.cab` | — |
+| Iso | ✅ Read / ❌ **Write** | `.iso .img` | — |
+| Nsis | ✅ Read / ❌ **Write** | `.nsis` | — |
+| Dmg | ✅ Read / ❌ **Write** | `.dmg` | — |
+| NTFS | ✅ Read / ❌ **Write** | `.ntfs .img` | — |
+| Ext | ✅ Read / ❌ **Write** | `.ext .ext2 .ext3 .ext4 .img` | — |
+| VHD | ✅ Read / ❌ **Write** | `.vhd` | — |
+| VHDX | ✅ Read / ❌ **Write** | `.vhdx .avhdx` | — |
+| VMDK | ✅ Read / ❌ **Write** | `.vmdk` | — |
+| QCOW | ✅ Read / ❌ **Write** | `.qcow .qcow2` | — |
+| GPT | ✅ Read / ❌ **Write** | `.gpt .mbr` | — |
+| MBR | ✅ Read / ❌ **Write** | `.mbr` | — |
+| FAT | ✅ Read / ❌ **Write** | `.fat .img` | — |
+| HFS | ✅ Read / ❌ **Write** | `.hfs .hfsx` | — |
+| APFS | ✅ Read / ❌ **Write** | `.apfs .img` | — |
+| Udf | ✅ Read / ❌ **Write** | `.udf .iso .img` | — |
+| SquashFS | ✅ Read / ❌ **Write** | `.squashfs` | — |
+| CramFS | ✅ Read / ❌ **Write** | `.cramfs` | — |
+| PE | ✅ Read / ❌ **Write** | `.exe .dll .sys` | — |
+| ELF | ✅ Read / ❌ **Write** | `.elf` | — |
+| MachO | ✅ Read / ❌ **Write** | `.macho` | — |
+| Chm | ✅ Read / ❌ **Write** | `.chm .chi .chq` | — |
+| Compound | ✅ Read / ❌ **Write** | `.msi .doc .xls .ppt` | — |
+| Cpio | ✅ Read / ❌ **Write** | `.cpio` | — |
+| Rpm | ✅ Read / ❌ **Write** | `.rpm` | — |
+| Ar | ✅ Read / ❌ **Write** | `.ar .a .deb .lib` | — |
+| Arj | ✅ Read / ❌ **Write** | `.arj` | — |
+| Lzh | ✅ Read / ❌ **Write** | `.lzh .lha` | — |
+| Z | ✅ Read / ❌ **Write** | `.z .taz` | — |
+| Split | ✅ Read / ❌ **Write** | `.001` | — |
+| Xar | ✅ Read / ❌ **Write** | `.xar .pkg .xip` | — |
+| Hxs | ✅ Read / ❌ **Write** | `.hxs .hxi .lit` | — |
+| FLV | ✅ Read / ❌ **Write** | `.flv` | — |
+| SWF | ✅ Read / ❌ **Write** | `.swf` | — |
+| SWFc | ✅ Read / ❌ **Write** | `.swf` (compressed) | — |
+| Base64 | ✅ Read / ❌ **Write** | `.b64` | — |
+| IHex | ✅ Read / ❌ **Write** | `.ihex` | — |
+| COFF | ✅ Read / ❌ **Write** | `.obj` | — |
+| TE | ✅ Read / ❌ **Write** | `.te` | — |
 
-**Writable formats** (support `IOutArchive`): 7z, zip, tar, gzip, bzip2, xz, wim
+The **codecs** available inside `.7z` (and sometimes `.zip`) are:
 
-**Read-only formats**: rar, rar5, iso, cab, dmg, ntfs, ext, vhd, pe, elf, and ~40 more
+| Codec | Encode | Decode | Notes |
+|---|---|---|---|
+| LZMA2 | ✅ | ✅ | Default for `.7z` |
+| LZMA | ✅ | ✅ | Legacy default |
+| PPMd | ✅ | ✅ | Good for text |
+| BZip2 | ✅ | ✅ | |
+| Deflate | ✅ | ✅ | Used by `.zip` |
+| Deflate64 | ✅ | ✅ | |
+| Copy | ✅ | ✅ | No compression (store) |
+| Delta | ✅ | ✅ | Filter |
+| BCJ / BCJ2 | ✅ | ✅ | x86 executable filter |
+| ARM / ARM64 | ✅ | ✅ | ARM executable filter |
+| RISCV | ✅ | ✅ | RISC-V executable filter |
+| 7zAES | ✅ | ✅ | AES-256 encryption |
 
 The full list of read/write support is reported at runtime via `GetHandlerProperty2(kUpdate)` — see `SevenZipLibrary.Formats`.
 
