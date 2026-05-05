@@ -3,7 +3,7 @@ using System.Runtime.InteropServices.Marshalling;
 
 #pragma warning disable CS9191 // Marshal.QueryInterface takes ref Guid, not in Guid
 
-namespace SevenZipNet.Interop;
+namespace Zeven.Interop;
 
 /// <summary>
 /// Managed IInStream implementation wrapping a .NET Stream.

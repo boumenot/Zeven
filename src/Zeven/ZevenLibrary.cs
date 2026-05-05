@@ -1,10 +1,10 @@
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
-using SevenZipNet.Interop;
+using Zeven.Interop;
 
 #pragma warning disable CS9191 // Marshal.QueryInterface takes ref Guid, not in Guid
 
-namespace SevenZipNet;
+namespace Zeven;
 
 /// <summary>Metadata about a supported archive format.</summary>
 public record ArchiveFormat(string Name, string Extension, Guid ClassId, bool CanUpdate);
@@ -13,7 +13,7 @@ public record ArchiveFormat(string Name, string Extension, Guid ClassId, bool Ca
 /// Loads 7-Zip's native DLL, resolves exports, and provides factory methods
 /// for creating COM archive objects.
 /// </summary>
-public sealed class SevenZipLibrary : IDisposable
+public sealed class ZevenLibrary : IDisposable
 {
     private readonly nint _lib;
     private readonly CreateObjectFunc _createObject;
@@ -22,7 +22,7 @@ public sealed class SevenZipLibrary : IDisposable
 
     public IReadOnlyList<ArchiveFormat> Formats { get; }
 
-    public SevenZipLibrary(string dllPath)
+    public ZevenLibrary(string dllPath)
     {
         _lib = NativeLibrary.Load(dllPath);
 

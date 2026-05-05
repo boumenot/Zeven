@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SevenZipNet\SevenZipNet.csproj" />
+    <ProjectReference Include="..\..\src\Zeven\Zeven.csproj" />
   </ItemGroup>
 
   <ItemGroup>

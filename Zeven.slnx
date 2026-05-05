@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Zeven/Zeven.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Zeven.Tests/Zeven.Tests.csproj" />
+  </Folder>
+</Solution>

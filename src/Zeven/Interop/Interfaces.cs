@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 
-namespace SevenZipNet.Interop;
+namespace Zeven.Interop;
 
 // ── Stream interfaces ───────────────────────────────────────────────────────
 

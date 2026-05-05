@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
-using SevenZipNet.Interop;
+using Zeven.Interop;
 
-namespace SevenZipNet;
+namespace Zeven;
 
 [UnmanagedFunctionPointer(CallingConvention.StdCall)]
 public delegate int CreateObjectFunc(in Guid clsID, in Guid iid, out nint outObject);

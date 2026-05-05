@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
-using SevenZipNet;
-using SevenZipNet.Interop;
+using Zeven;
+using Zeven.Interop;
 
 #pragma warning disable CS9191 // Marshal.QueryInterface takes ref Guid, not in Guid
 
@@ -77,7 +77,7 @@ if (args.Length > 0 && File.Exists(args[0]))
 else
 {
     // Create sample files
-    File.WriteAllText(Path.Combine(tempDir, "hello.txt"), "Hello, World! This is a test file for 7-Zip COM interop.");
+    File.WriteAllText(Path.Combine(tempDir, "hello.txt"), "Hello, World! This is a test file for 7-Zip COM Interop.");
     File.WriteAllText(Path.Combine(tempDir, "readme.md"), "# 7-Zip COM Interop Test\n\nThis archive was created to verify .NET source-generated COM bindings.\n");
     File.WriteAllText(Path.Combine(tempDir, "data.csv"), "Name,Value\nAlpha,1\nBeta,2\nGamma,3\n");
 

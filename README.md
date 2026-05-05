@@ -1,4 +1,4 @@
-# SevenZipNet
+# Zeven
 
 A .NET 10 registration-free COM interop wrapper for 7-Zip's native DLLs, using source-generated COM interfaces (`[GeneratedComInterface]` / `[GeneratedComClass]`).
 
@@ -7,9 +7,9 @@ No COM registration, no IDL, no type libraries — just P/Invoke `CreateObject` 
 ## Quick Start
 
 ```csharp
-using SevenZipNet;
+using Zeven;
 
-using var lib = new SevenZipLibrary(@"path\to\7z.dll");
+using var lib = new ZevenLibrary(@"path\to\7z.dll");
 var fmt = lib.Formats.First(f => f.Name == "7z");
 
 // Create an archive in memory
@@ -42,7 +42,7 @@ var extracted = handle.ExtractAll(); // Dict<string, byte[]>
 
 ### Which DLL to use?
 
-- **`7z.dll`** — Use this for full functionality. Supports reading and writing all formats. Ships with the 7-Zip installer (`C:\Program Files\7-Zip\7z.dll`). **This is what SevenZipNet uses by default.**
+- **`7z.dll`** — Use this for full functionality. Supports reading and writing all formats. Ships with the 7-Zip installer (`C:\Program Files\7-Zip\7z.dll`). **This is what Zeven uses by default.**
 
 - **`7za.dll`** — Use for minimal deployments that only need the 7z format. Available in the [7-Zip Extra](https://7-zip.org/download.html) standalone package.
 
@@ -132,7 +132,7 @@ The **codecs** available inside `.7z` (and sometimes `.zip`) are:
 | RISCV | ✅ | ✅ | RISC-V executable filter |
 | 7zAES | ✅ | ✅ | AES-256 encryption |
 
-The full list of read/write support is reported at runtime via `GetHandlerProperty2(kUpdate)` — see `SevenZipLibrary.Formats`.
+The full list of read/write support is reported at runtime via `GetHandlerProperty2(kUpdate)` — see `ZevenLibrary.Formats`.
 
 ### Exported Functions
 

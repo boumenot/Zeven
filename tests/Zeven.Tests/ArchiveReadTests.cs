@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using SevenZipNet;
-using SevenZipNet.Interop;
+using Zeven;
+using Zeven.Interop;
 
-namespace SevenZipNet.Tests;
+namespace Zeven.Tests;
 
 /// <summary>
 /// Creates a .7z archive in memory (via 7za.exe + temp file) for use as test fixture.
@@ -58,7 +58,7 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     [Fact]
     public void Open_FromMemoryStream_Succeeds()
     {
-        using var lib = new SevenZipLibrary(DllPath);
+        using var lib = new ZevenLibrary(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
         using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
@@ -72,7 +72,7 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     [Fact]
     public void GetProperty_ReturnsCorrectPaths()
     {
-        using var lib = new SevenZipLibrary(DllPath);
+        using var lib = new ZevenLibrary(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
         using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
@@ -95,7 +95,7 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     [Fact]
     public void GetProperty_ReturnsCorrectSizes()
     {
-        using var lib = new SevenZipLibrary(DllPath);
+        using var lib = new ZevenLibrary(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
         using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);

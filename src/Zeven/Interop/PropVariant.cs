@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace SevenZipNet.Interop;
+namespace Zeven.Interop;
 
 /// <summary>
 /// Blittable PROPVARIANT layout (24 bytes on x64).

@@ -1,6 +1,6 @@
-using SevenZipNet;
+using Zeven;
 
-namespace SevenZipNet.Tests;
+namespace Zeven.Tests;
 
 public class DisposableTests
 {
@@ -9,7 +9,7 @@ public class DisposableTests
     [Fact]
     public void ArchiveHandle_CanBeUsedInUsingBlock()
     {
-        using var lib = new SevenZipLibrary(DllPath);
+        using var lib = new ZevenLibrary(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         // Create a small archive
@@ -34,7 +34,7 @@ public class DisposableTests
     [Fact]
     public void MultipleArchives_CanOpenSimultaneously()
     {
-        using var lib = new SevenZipLibrary(DllPath);
+        using var lib = new ZevenLibrary(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
 
         byte[] archive1, archive2;
@@ -62,9 +62,9 @@ public class DisposableTests
     }
 
     [Fact]
-    public void SevenZipLibrary_ImplementsIDisposable()
+    public void ZevenLibrary_ImplementsIDisposable()
     {
-        Assert.True(typeof(IDisposable).IsAssignableFrom(typeof(SevenZipLibrary)));
+        Assert.True(typeof(IDisposable).IsAssignableFrom(typeof(ZevenLibrary)));
     }
 
     [Fact]
