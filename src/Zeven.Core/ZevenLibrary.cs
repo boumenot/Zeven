@@ -11,11 +11,14 @@ public record ArchiveFormat(string Name, string Extension, Guid ClassId, bool Ca
 
 /// <summary>
 /// Loads 7-Zip's native DLL, resolves exports, and provides factory methods
-/// for creating COM archive objects. Use <see cref="Load"/> to create an instance.
-/// The DLL is loaded once and kept for the lifetime of the process.
+/// for creating COM archive objects. Use <see cref="Load"/> to obtain the instance.
+/// Only one DLL can be loaded per process.
 /// </summary>
 public sealed class ZevenLibrary : IDisposable
 {
+    private static ZevenLibrary? _instance;
+    private static readonly Lock _lock = new();
+
     private readonly nint _lib;
     private readonly CreateObjectFunc _createObject;
     private readonly StrategyBasedComWrappers _comWrappers = new();
@@ -38,24 +41,22 @@ public sealed class ZevenLibrary : IDisposable
     }
 
     /// <summary>
-    /// Load a 7-Zip native DLL and return a ready-to-use library instance.
-    /// The DLL is loaded once per path; repeated calls with the same path
-    /// return the same instance.
+    /// Load a 7-Zip native DLL and return the library instance.
+    /// The DLL is loaded once; subsequent calls return the same instance.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if called a second time with a different path.
+    /// </exception>
     public static ZevenLibrary Load(string dllPath)
     {
-        string fullPath = Path.GetFullPath(dllPath);
-        lock (_instances)
+        lock (_lock)
         {
-            if (_instances.TryGetValue(fullPath, out var existing))
-                return existing;
-            var lib = new ZevenLibrary(fullPath);
-            _instances[fullPath] = lib;
-            return lib;
+            if (_instance != null)
+                return _instance;
+            _instance = new ZevenLibrary(Path.GetFullPath(dllPath));
+            return _instance;
         }
     }
-
-    private static readonly Dictionary<string, ZevenLibrary> _instances = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Create an IInArchive COM object for the given format CLSID.</summary>
     public ArchiveHandle CreateInArchive(Guid classId)
