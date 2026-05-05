@@ -8,7 +8,7 @@ using SevenZipNet.Interop;
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
-const string DllPath = @"q:\7z2601-bin\x64\7za.dll";
+const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
 const string ExePath = @"q:\7z2601-bin\x64\7za.exe";
 
 // 7z format CLSID: {23170F69-40C1-278A-1000-000110070000}
@@ -217,5 +217,5 @@ if (args.Length == 0)
     try { Directory.Delete(tempDir, true); } catch { }
 }
 
-Console.WriteLine("✓ Done — registration-free COM interop with 7za.dll works!");
+Console.WriteLine("✓ Done — registration-free COM interop with 7z.dll works!");
 return 0;

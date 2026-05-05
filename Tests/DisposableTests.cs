@@ -4,7 +4,7 @@ namespace SevenZipNet.Tests;
 
 public class DisposableTests
 {
-    const string DllPath = @"q:\7z2601-bin\x64\7za.dll";
+    const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
 
     [Fact]
     public void ArchiveHandle_CanBeUsedInUsingBlock()
