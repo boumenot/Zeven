@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
-using Zeven.Interop;
+using Zeven.Core.Interop;
 
-namespace Zeven;
+namespace Zeven.Core;
 
 [UnmanagedFunctionPointer(CallingConvention.StdCall)]
 public delegate int CreateObjectFunc(in Guid clsID, in Guid iid, out nint outObject);

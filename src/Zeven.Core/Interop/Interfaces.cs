@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 
-namespace Zeven.Interop;
+namespace Zeven.Core.Interop;
 
 // ── Stream interfaces ───────────────────────────────────────────────────────
 

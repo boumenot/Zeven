@@ -1,10 +1,10 @@
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
-using Zeven.Interop;
+using Zeven.Core.Interop;
 
 #pragma warning disable CS9191 // Marshal.QueryInterface takes ref Guid, not in Guid
 
-namespace Zeven;
+namespace Zeven.Core;
 
 /// <summary>Metadata about a supported archive format.</summary>
 public record ArchiveFormat(string Name, string Extension, Guid ClassId, bool CanUpdate);

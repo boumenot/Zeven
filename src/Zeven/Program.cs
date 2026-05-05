@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
-using Zeven;
-using Zeven.Interop;
+using Zeven.Core;
+using Zeven.Core.Interop;
 
 #pragma warning disable CS9191 // Marshal.QueryInterface takes ref Guid, not in Guid
 

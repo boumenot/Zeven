@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Zeven.Interop;
+namespace Zeven.Core.Interop;
 
 /// <summary>
 /// Blittable PROPVARIANT layout (24 bytes on x64).

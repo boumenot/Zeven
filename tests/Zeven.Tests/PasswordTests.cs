@@ -1,4 +1,4 @@
-using Zeven;
+using Zeven.Core;
 
 namespace Zeven.Tests;
 

@@ -1,5 +1,5 @@
-using Zeven;
-using Zeven.Interop;
+using Zeven.Core;
+using Zeven.Core.Interop;
 
 namespace Zeven.Tests;
 

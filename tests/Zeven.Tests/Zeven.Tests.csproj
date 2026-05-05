@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Zeven\Zeven.csproj" />
+    <ProjectReference Include="..\..\src\Zeven.Core\Zeven.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
