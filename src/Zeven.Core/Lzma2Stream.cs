@@ -235,7 +235,7 @@ public class Lzma2Stream : Stream
         {
             try
             {
-                Lzma2Codec.Compress(pipeReader, capturedInner, capturedLevel);
+                Lzma2Codec.Compress(pipeReader, capturedInner, capturedLevel, writeSizePrefix: false);
             }
             finally
             {
@@ -247,73 +247,12 @@ public class Lzma2Stream : Stream
     private void InitDecompress()
     {
         var lib = ZevenLibrary.Instance;
-        int codecIndex = lib.FindCodecIndex(CodecId.Lzma2);
-        if (codecIndex < 0)
-        {
-            throw new InvalidOperationException("LZMA2 codec not found");
-        }
-
-        // Read 1-byte property header
-        int propByte = this.innerStream.ReadByte();
-        if (propByte < 0)
-        {
-            throw new InvalidDataException("Unexpected end of stream reading LZMA2 property byte");
-        }
-
-        nint decoderPtr = lib.CreateDecoderObject((uint)codecIndex);
-        var cw = lib.ComWrappers;
-
-        // Set decoder properties
-        Guid iidSetDecProps = Iid.ICompressSetDecoderProperties2;
-        Marshal.QueryInterface(decoderPtr, ref iidSetDecProps, out nint setDecPropsPtr);
-        if (setDecPropsPtr != nint.Zero)
-        {
-            var setDecProps = (ICompressSetDecoderProperties2)cw.GetOrCreateObjectForComInstance(
-                setDecPropsPtr, CreateObjectFlags.UniqueInstance);
-            unsafe
-            {
-                byte prop = (byte)propByte;
-                setDecProps.SetDecoderProperties2((nint)(&prop), 1);
-            }
-            Marshal.Release(setDecPropsPtr);
-        }
-
-        // Set input stream (the compressed inner stream)
-        var inWrapper = new InStreamWrapper(this.innerStream);
-        this.liveObjects.Add(inWrapper);
-        nint inCcw = cw.GetOrCreateComInterfaceForObject(inWrapper, CreateComInterfaceFlags.None);
-        Guid iidSeqIn = Iid.ISequentialInStream;
-        Marshal.QueryInterface(inCcw, ref iidSeqIn, out nint inPtr);
-
-        Guid iidSetInStream = Iid.ICompressSetInStream;
-        Marshal.QueryInterface(decoderPtr, ref iidSetInStream, out nint setInStreamPtr);
-        if (setInStreamPtr != nint.Zero)
-        {
-            var setIn = (ICompressSetInStream)cw.GetOrCreateObjectForComInstance(
-                setInStreamPtr, CreateObjectFlags.UniqueInstance);
-            setIn.SetInStream(inPtr);
-            Marshal.Release(setInStreamPtr);
-        }
-
-        if (inPtr != nint.Zero) { Marshal.Release(inPtr); }
-        Marshal.Release(inCcw);
-
-        // Initialize for stream-mode decoding (unknown output size)
-        Guid iidSetOutSize = Iid.ICompressSetOutStreamSize;
-        Marshal.QueryInterface(decoderPtr, ref iidSetOutSize, out nint setOutSizePtr);
-        if (setOutSizePtr != nint.Zero)
-        {
-            var setOutSize = (ICompressSetOutStreamSize)cw.GetOrCreateObjectForComInstance(
-                setOutSizePtr, CreateObjectFlags.UniqueInstance);
-            setOutSize.SetOutStreamSize(nint.Zero); // NULL = unknown size
-            Marshal.Release(setOutSizePtr);
-        }
-
-        // QI decoder for ISequentialInStream — this IS the decompressed data stream
-        Marshal.QueryInterface(decoderPtr, ref iidSeqIn, out this.decoderInStreamPtr);
+        this.decoderInStreamPtr = CodecHelper.InitStreamDecoder(
+            CodecId.Lzma2, Lzma2Codec.PropertyHeaderSize,
+            this.innerStream, lib.ComWrappers, this.liveObjects, hasSizePrefix: false);
     }
 
-    public override bool CanRead => this.mode == CompressionMode.Decompress && !this.disposed;
+    public override bool CanRead=> this.mode == CompressionMode.Decompress && !this.disposed;
     public override bool CanWrite => this.mode == CompressionMode.Compress && !this.disposed;
     public override bool CanSeek => false;
     public override long Length => throw new NotSupportedException();
