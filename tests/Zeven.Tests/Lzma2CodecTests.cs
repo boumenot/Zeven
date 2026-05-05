@@ -1,4 +1,5 @@
 using Zeven.Core;
+using Zeven.Core.Interop;
 
 namespace Zeven.Tests;
 
@@ -11,7 +12,7 @@ public class Lzma2CodecTests
     {
         var lib = ZevenLibrary.Load(DllPath);
 
-        int index = lib.FindCodecIndex(0x21); // LZMA2 codec ID
+        int index = lib.FindCodecIndex(CodecId.Lzma2); // LZMA2 codec ID
 
         Assert.True(index >= 0, "LZMA2 codec should be found");
     }
@@ -20,7 +21,7 @@ public class Lzma2CodecTests
     public void CreateEncoderObject_Lzma2_ReturnsNonNull()
     {
         var lib = ZevenLibrary.Load(DllPath);
-        int index = lib.FindCodecIndex(0x21);
+        int index = lib.FindCodecIndex(CodecId.Lzma2);
 
         nint encoder = lib.CreateEncoderObject((uint)index);
 
@@ -31,7 +32,7 @@ public class Lzma2CodecTests
     public void CreateDecoderObject_Lzma2_ReturnsNonNull()
     {
         var lib = ZevenLibrary.Load(DllPath);
-        int index = lib.FindCodecIndex(0x21);
+        int index = lib.FindCodecIndex(CodecId.Lzma2);
 
         nint decoder = lib.CreateDecoderObject((uint)index);
 

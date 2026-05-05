@@ -1,6 +1,22 @@
 namespace Zeven.Core.Interop;
 
 /// <summary>
+/// Well-known 7-Zip codec IDs used with <see cref="ZevenLibrary.FindCodecIndex"/>.
+/// These are the internal method IDs from 7-Zip, not GUIDs.
+/// </summary>
+public static class CodecId
+{
+    public const ulong Copy     = 0x00;
+    public const ulong Delta    = 0x03;
+    public const ulong Lzma2   = 0x21;
+    public const ulong Lzma    = 0x030101;
+    public const ulong Ppmd    = 0x030401;
+    public const ulong Deflate = 0x040108;
+    public const ulong BZip2   = 0x040202;
+    public const ulong Aes256  = 0x06F10701;
+}
+
+/// <summary>
 /// 7-Zip COM interface IIDs and format CLSIDs.
 /// All GUIDs follow the pattern {23170F69-40C1-278A-XXXX-XXXXXXXXXXXX}.
 /// </summary>

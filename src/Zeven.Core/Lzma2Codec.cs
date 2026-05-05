@@ -12,7 +12,7 @@ namespace Zeven.Core;
 /// </summary>
 public static class Lzma2Codec
 {
-    private const ulong Lzma2CodecId = 0x21;
+    private const ulong Lzma2CodecId = CodecId.Lzma2;
 
     /// <summary>Compress a stream using LZMA2. Writes a 1-byte property header then compressed data.</summary>
     public static void Compress(Stream input, Stream output, int level = 5)

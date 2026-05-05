@@ -162,7 +162,7 @@ public class Lzma2Stream : Stream
     private void InitDecompress()
     {
         var lib = ZevenLibrary.Instance;
-        int codecIndex = lib.FindCodecIndex(0x21);
+        int codecIndex = lib.FindCodecIndex(CodecId.Lzma2);
         if (codecIndex < 0)
         {
             throw new InvalidOperationException("LZMA2 codec not found");
