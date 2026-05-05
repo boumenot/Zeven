@@ -16,28 +16,28 @@ public record ArchiveFormat(string Name, string Extension, Guid ClassId, bool Ca
 /// </summary>
 public sealed class ZevenLibrary : IDisposable
 {
-    private static ZevenLibrary? _instance;
-    private static readonly Lock _lock = new();
+    private static ZevenLibrary? instance;
+    private static readonly Lock syncLock = new();
 
-    private readonly nint _lib;
-    private readonly CreateObjectFunc _createObject;
-    private readonly StrategyBasedComWrappers _comWrappers = new();
-    private bool _disposed;
+    private readonly nint lib;
+    private readonly CreateObjectFunc createObject;
+    private readonly StrategyBasedComWrappers comWrappers = new();
+    private bool disposed;
 
     public IReadOnlyList<ArchiveFormat> Formats { get; }
 
     private ZevenLibrary(string dllPath)
     {
-        _lib = NativeLibrary.Load(dllPath);
+        this.lib = NativeLibrary.Load(dllPath);
 
-        _createObject = Marshal.GetDelegateForFunctionPointer<CreateObjectFunc>(
-            NativeLibrary.GetExport(_lib, "CreateObject"));
+        this.createObject = Marshal.GetDelegateForFunctionPointer<CreateObjectFunc>(
+            NativeLibrary.GetExport(this.lib, "CreateObject"));
         var getNumberOfFormats = Marshal.GetDelegateForFunctionPointer<GetNumberOfFormatsFunc>(
-            NativeLibrary.GetExport(_lib, "GetNumberOfFormats"));
+            NativeLibrary.GetExport(this.lib, "GetNumberOfFormats"));
         var getHandlerProperty2 = Marshal.GetDelegateForFunctionPointer<GetHandlerProperty2Func>(
-            NativeLibrary.GetExport(_lib, "GetHandlerProperty2"));
+            NativeLibrary.GetExport(this.lib, "GetHandlerProperty2"));
 
-        Formats = LoadFormats(getNumberOfFormats, getHandlerProperty2);
+        this.Formats = LoadFormats(getNumberOfFormats, getHandlerProperty2);
     }
 
     /// <summary>
@@ -49,12 +49,14 @@ public sealed class ZevenLibrary : IDisposable
     /// </exception>
     public static ZevenLibrary Load(string dllPath)
     {
-        lock (_lock)
+        lock (syncLock)
         {
-            if (_instance != null)
-                return _instance;
-            _instance = new ZevenLibrary(Path.GetFullPath(dllPath));
-            return _instance;
+            if (instance != null)
+            {
+                return instance;
+            }
+            instance = new ZevenLibrary(Path.GetFullPath(dllPath));
+            return instance;
         }
     }
 
@@ -62,38 +64,38 @@ public sealed class ZevenLibrary : IDisposable
     public ArchiveHandle CreateInArchive(Guid classId)
     {
         Guid iid = new("23170F69-40C1-278A-0000-000600600000"); // IID_IInArchive
-        int hr = _createObject(in classId, in iid, out nint ptr);
+        int hr = this.createObject(in classId, in iid, out nint ptr);
         Marshal.ThrowExceptionForHR(hr);
-        var archive = (IInArchive)_comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
-        return new ArchiveHandle(archive, _comWrappers);
+        var archive = (IInArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
+        return new ArchiveHandle(archive, this.comWrappers);
     }
 
-    public StrategyBasedComWrappers ComWrappers => _comWrappers;
+    public StrategyBasedComWrappers ComWrappers => this.comWrappers;
 
     /// <summary>Create a .7z archive from in-memory file data.</summary>
     public void CreateArchive(Guid classId, Stream outputStream, Dictionary<string, byte[]> files, string? password = null)
     {
         Guid iid = new("23170F69-40C1-278A-0000-000600A00000"); // IID_IOutArchive
-        int hr = _createObject(in classId, in iid, out nint ptr);
+        int hr = this.createObject(in classId, in iid, out nint ptr);
         Marshal.ThrowExceptionForHR(hr);
 
-        var outArchive = (IOutArchive)_comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
+        var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
 
         var outWrapper = new OutStreamWrapper(outputStream);
-        var updateCallback = new UpdateCallback(files, _comWrappers, password);
+        var updateCallback = new UpdateCallback(files, this.comWrappers, password);
 
-        nint outCcw = _comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
+        nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
         Guid iidOutStream = new("23170F69-40C1-278A-0000-000300040000"); // IOutStream (seekable)
         Marshal.QueryInterface(outCcw, ref iidOutStream, out nint outPtr);
 
-        nint cbCcw = _comWrappers.GetOrCreateComInterfaceForObject(updateCallback, CreateComInterfaceFlags.None);
+        nint cbCcw = this.comWrappers.GetOrCreateComInterfaceForObject(updateCallback, CreateComInterfaceFlags.None);
         Guid iidUpdateCb = new("23170F69-40C1-278A-0000-000600800000");
         Marshal.QueryInterface(cbCcw, ref iidUpdateCb, out nint cbPtr);
 
         hr = outArchive.UpdateItems(outPtr, (uint)files.Count, cbPtr);
 
-        if (outPtr != nint.Zero) Marshal.Release(outPtr);
-        if (cbPtr != nint.Zero) Marshal.Release(cbPtr);
+        if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
+        if (cbPtr != nint.Zero) { Marshal.Release(cbPtr); }
         Marshal.Release(outCcw);
         Marshal.Release(cbCcw);
         GC.KeepAlive(outWrapper);
@@ -145,11 +147,11 @@ public sealed class ZevenLibrary : IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
             // Don't call NativeLibrary.Free — COM objects may still reference
             // the DLL's vtables. The OS unloads it at process exit.
-            _disposed = true;
+            this.disposed = true;
         }
     }
 }
@@ -161,28 +163,28 @@ public sealed class ArchiveHandle : IDisposable
     public StrategyBasedComWrappers ComWrappers { get; }
 
     // prevent GC of managed COM wrappers while native code holds references
-    private InStreamWrapper? _streamWrapper;
-    private ArchiveOpenCallback? _openCallback;
-    private string? _password;
+    private InStreamWrapper? streamWrapper;
+    private ArchiveOpenCallback? openCallback;
+    private string? password;
 
     internal ArchiveHandle(IInArchive archive, StrategyBasedComWrappers comWrappers)
     {
-        Archive = archive;
-        ComWrappers = comWrappers;
+        this.Archive = archive;
+        this.ComWrappers = comWrappers;
     }
 
     /// <summary>Open an archive from the given stream.</summary>
     public void Open(Stream stream, string? password = null, ulong maxCheckStartPosition = 1 << 23)
     {
-        _password = password;
-        _streamWrapper = new InStreamWrapper(stream);
-        _openCallback = new ArchiveOpenCallback(password);
+        this.password = password;
+        this.streamWrapper = new InStreamWrapper(stream);
+        this.openCallback = new ArchiveOpenCallback(password);
 
-        nint streamCcw = ComWrappers.GetOrCreateComInterfaceForObject(_streamWrapper, CreateComInterfaceFlags.None);
+        nint streamCcw = this.ComWrappers.GetOrCreateComInterfaceForObject(this.streamWrapper, CreateComInterfaceFlags.None);
         Guid iidInStream = new("23170F69-40C1-278A-0000-000300030000");
         Marshal.QueryInterface(streamCcw, ref iidInStream, out nint streamPtr);
 
-        nint callbackCcw = ComWrappers.GetOrCreateComInterfaceForObject(_openCallback, CreateComInterfaceFlags.None);
+        nint callbackCcw = this.ComWrappers.GetOrCreateComInterfaceForObject(this.openCallback, CreateComInterfaceFlags.None);
         Guid iidCallback = new("23170F69-40C1-278A-0000-000600100000");
         Marshal.QueryInterface(callbackCcw, ref iidCallback, out nint callbackPtr);
 
@@ -190,12 +192,12 @@ public sealed class ArchiveHandle : IDisposable
         unsafe
         {
             ulong scanSize = maxCheckStartPosition;
-            hr = Archive.Open(streamPtr, (nint)(&scanSize), callbackPtr);
+            hr = this.Archive.Open(streamPtr, (nint)(&scanSize), callbackPtr);
         }
 
         // Release our QI references
-        if (streamPtr != nint.Zero) Marshal.Release(streamPtr);
-        if (callbackPtr != nint.Zero) Marshal.Release(callbackPtr);
+        if (streamPtr != nint.Zero) { Marshal.Release(streamPtr); }
+        if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
         Marshal.Release(streamCcw);
         Marshal.Release(callbackCcw);
 
@@ -204,30 +206,33 @@ public sealed class ArchiveHandle : IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (!this.disposed)
         {
-            _disposed = true;
-            Archive.Close();
-            _streamWrapper = null;
-            _openCallback = null;
+            this.disposed = true;
+            this.Archive.Close();
+            this.streamWrapper = null;
+            this.openCallback = null;
         }
     }
-    private bool _disposed;
+    private bool disposed;
 
     /// <summary>Extract all files to memory. Returns dict of path → byte[].</summary>
     public Dictionary<string, byte[]> ExtractAll()
     {
-        var callback = new ExtractCallback(Archive, ComWrappers, _password);
-        CallExtract(null, 0, callback);
+        var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
+        this.CallExtract(null, 0, callback);
 
         // Map index→bytes to path→bytes
-        Archive.GetNumberOfItems(out uint count);
+        this.Archive.GetNumberOfItems(out uint count);
         var result = new Dictionary<string, byte[]>();
         for (uint i = 0; i < count; i++)
         {
-            if (!callback.ExtractedData.TryGetValue(i, out var data)) continue;
+            if (!callback.ExtractedData.TryGetValue(i, out var data))
+            {
+                continue;
+            }
             PropVariant pv = default;
-            Archive.GetProperty(i, PropId.kpidPath, ref pv);
+            this.Archive.GetProperty(i, PropId.kpidPath, ref pv);
             string path = pv.GetBstr() ?? i.ToString();
             NativeMethods.PropVariantClear(ref pv);
             result[path] = data;
@@ -238,22 +243,22 @@ public sealed class ArchiveHandle : IDisposable
     /// <summary>Extract specific items by index. Returns dict of index → byte[].</summary>
     public Dictionary<uint, byte[]> Extract(uint[] indices)
     {
-        var callback = new ExtractCallback(Archive, ComWrappers, _password);
-        CallExtract(indices, 0, callback);
+        var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
+        this.CallExtract(indices, 0, callback);
         return callback.ExtractedData;
     }
 
     /// <summary>Test archive integrity (extract in verify-only mode).</summary>
     public void Test()
     {
-        var callback = new ExtractCallback(Archive, ComWrappers, _password);
+        var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
         // numItems = 0xFFFFFFFF means "all", testMode = 1
-        CallExtract(null, 1, callback);
+        this.CallExtract(null, 1, callback);
     }
 
     private void CallExtract(uint[]? indices, int testMode, ExtractCallback callback)
     {
-        var cw = ComWrappers;
+        var cw = this.ComWrappers;
         nint callbackCcw = cw.GetOrCreateComInterfaceForObject(callback, CreateComInterfaceFlags.None);
         Guid iidExtractCb = new("23170F69-40C1-278A-0000-000600200000");
         Marshal.QueryInterface(callbackCcw, ref iidExtractCb, out nint callbackPtr);
@@ -262,7 +267,7 @@ public sealed class ArchiveHandle : IDisposable
         if (indices == null)
         {
             // Extract all: pass NULL indices and numItems = 0xFFFFFFFF
-            hr = Archive.Extract(nint.Zero, 0xFFFFFFFF, testMode, callbackPtr);
+            hr = this.Archive.Extract(nint.Zero, 0xFFFFFFFF, testMode, callbackPtr);
         }
         else
         {
@@ -270,12 +275,12 @@ public sealed class ArchiveHandle : IDisposable
             {
                 fixed (uint* pIndices = indices)
                 {
-                    hr = Archive.Extract((nint)pIndices, (uint)indices.Length, testMode, callbackPtr);
+                    hr = this.Archive.Extract((nint)pIndices, (uint)indices.Length, testMode, callbackPtr);
                 }
             }
         }
 
-        if (callbackPtr != nint.Zero) Marshal.Release(callbackPtr);
+        if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
         Marshal.Release(callbackCcw);
         GC.KeepAlive(callback);
         Marshal.ThrowExceptionForHR(hr);
