@@ -47,7 +47,7 @@ public sealed class SevenZipLibrary : IDisposable
     public StrategyBasedComWrappers ComWrappers => _comWrappers;
 
     /// <summary>Create a .7z archive from in-memory file data.</summary>
-    public void CreateArchive(Guid classId, Stream outputStream, Dictionary<string, byte[]> files)
+    public void CreateArchive(Guid classId, Stream outputStream, Dictionary<string, byte[]> files, string? password = null)
     {
         Guid iid = new("23170F69-40C1-278A-0000-000600A00000"); // IID_IOutArchive
         int hr = _createObject(in classId, in iid, out nint ptr);
@@ -56,7 +56,7 @@ public sealed class SevenZipLibrary : IDisposable
         var outArchive = (IOutArchive)_comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
 
         var outWrapper = new OutStreamWrapper(outputStream);
-        var updateCallback = new UpdateCallback(files, _comWrappers);
+        var updateCallback = new UpdateCallback(files, _comWrappers, password);
 
         nint outCcw = _comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
         Guid iidOutStream = new("23170F69-40C1-278A-0000-000300040000"); // IOutStream (seekable)
@@ -139,6 +139,7 @@ public sealed class ArchiveHandle : IDisposable
     // prevent GC of managed COM wrappers while native code holds references
     private InStreamWrapper? _streamWrapper;
     private ArchiveOpenCallback? _openCallback;
+    private string? _password;
 
     internal ArchiveHandle(IInArchive archive, StrategyBasedComWrappers comWrappers)
     {
@@ -147,10 +148,11 @@ public sealed class ArchiveHandle : IDisposable
     }
 
     /// <summary>Open an archive from the given stream.</summary>
-    public void Open(Stream stream, ulong maxCheckStartPosition = 1 << 23)
+    public void Open(Stream stream, string? password = null, ulong maxCheckStartPosition = 1 << 23)
     {
+        _password = password;
         _streamWrapper = new InStreamWrapper(stream);
-        _openCallback = new ArchiveOpenCallback();
+        _openCallback = new ArchiveOpenCallback(password);
 
         nint streamCcw = ComWrappers.GetOrCreateComInterfaceForObject(_streamWrapper, CreateComInterfaceFlags.None);
         Guid iidInStream = new("23170F69-40C1-278A-0000-000300030000");
@@ -186,7 +188,7 @@ public sealed class ArchiveHandle : IDisposable
     /// <summary>Extract all files to memory. Returns dict of path → byte[].</summary>
     public Dictionary<string, byte[]> ExtractAll()
     {
-        var callback = new ExtractCallback(Archive, ComWrappers);
+        var callback = new ExtractCallback(Archive, ComWrappers, _password);
         CallExtract(null, 0, callback);
 
         // Map index→bytes to path→bytes
@@ -207,7 +209,7 @@ public sealed class ArchiveHandle : IDisposable
     /// <summary>Extract specific items by index. Returns dict of index → byte[].</summary>
     public Dictionary<uint, byte[]> Extract(uint[] indices)
     {
-        var callback = new ExtractCallback(Archive, ComWrappers);
+        var callback = new ExtractCallback(Archive, ComWrappers, _password);
         CallExtract(indices, 0, callback);
         return callback.ExtractedData;
     }
@@ -215,7 +217,7 @@ public sealed class ArchiveHandle : IDisposable
     /// <summary>Test archive integrity (extract in verify-only mode).</summary>
     public void Test()
     {
-        var callback = new ExtractCallback(Archive, ComWrappers);
+        var callback = new ExtractCallback(Archive, ComWrappers, _password);
         // numItems = 0xFFFFFFFF means "all", testMode = 1
         CallExtract(null, 1, callback);
     }

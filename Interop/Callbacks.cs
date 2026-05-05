@@ -57,13 +57,28 @@ public partial class InStreamWrapper : IInStream
 }
 
 /// <summary>
-/// Minimal IArchiveOpenCallback — ignores progress, no password support.
+/// IArchiveOpenCallback with optional password support.
+/// 7-Zip QIs for ICryptoGetTextPassword during Open.
 /// </summary>
 [GeneratedComClass]
-public partial class ArchiveOpenCallback : IArchiveOpenCallback
+public partial class ArchiveOpenCallback : IArchiveOpenCallback, ICryptoGetTextPassword
 {
+    private readonly string? _password;
+    public ArchiveOpenCallback(string? password = null) => _password = password;
+
     public int SetTotal(nint files, nint bytes) => 0;
     public int SetCompleted(nint files, nint bytes) => 0;
+
+    public int CryptoGetTextPassword(out nint password)
+    {
+        if (_password == null)
+        {
+            password = nint.Zero;
+            return unchecked((int)0x80004004); // E_ABORT — no password available
+        }
+        password = Marshal.StringToBSTR(_password);
+        return 0;
+    }
 }
 
 /// <summary>
@@ -110,10 +125,11 @@ public partial class OutStreamWrapper : IOutStream
 /// After extraction, results are available in ExtractedStreams.
 /// </summary>
 [GeneratedComClass]
-public partial class ExtractCallback : IArchiveExtractCallback
+public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPassword
 {
     private readonly IInArchive _archive;
     private readonly StrategyBasedComWrappers _cw;
+    private readonly string? _password;
     private uint _currentIndex;
     private MemoryStream? _currentStream;
     private readonly List<object> _liveObjects = new();
@@ -121,10 +137,11 @@ public partial class ExtractCallback : IArchiveExtractCallback
     /// <summary>Extracted data keyed by archive item index.</summary>
     public Dictionary<uint, byte[]> ExtractedData { get; } = new();
 
-    public ExtractCallback(IInArchive archive, StrategyBasedComWrappers cw)
+    public ExtractCallback(IInArchive archive, StrategyBasedComWrappers cw, string? password = null)
     {
         _archive = archive;
         _cw = cw;
+        _password = password;
     }
 
     // IProgress
@@ -165,28 +182,43 @@ public partial class ExtractCallback : IArchiveExtractCallback
     {
         if (_currentStream != null)
         {
-            ExtractedData[_currentIndex] = _currentStream.ToArray();
+            // opRes == 0 means kOK; non-zero means error (CRC, wrong password, etc.)
+            if (opRes == 0)
+                ExtractedData[_currentIndex] = _currentStream.ToArray();
             _currentStream.Dispose();
             _currentStream = null;
         }
         return 0;
     }
+
+    public int CryptoGetTextPassword(out nint password)
+    {
+        if (_password == null)
+        {
+            password = nint.Zero;
+            return unchecked((int)0x80004004); // E_ABORT
+        }
+        password = Marshal.StringToBSTR(_password);
+        return 0;
+    }
 }
 
 /// <summary>
-/// Archive creation callback that provides file data from in-memory byte arrays.
+/// Archive creation callback with optional password support.
 /// </summary>
 [GeneratedComClass]
-public partial class UpdateCallback : IArchiveUpdateCallback
+public partial class UpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPassword2
 {
     private readonly List<(string Path, byte[] Data)> _items;
     private readonly StrategyBasedComWrappers _cw;
+    private readonly string? _password;
     private readonly List<object> _liveObjects = new();
 
-    public UpdateCallback(Dictionary<string, byte[]> files, StrategyBasedComWrappers cw)
+    public UpdateCallback(Dictionary<string, byte[]> files, StrategyBasedComWrappers cw, string? password = null)
     {
         _items = files.Select(kv => (kv.Key, kv.Value)).ToList();
         _cw = cw;
+        _password = password;
     }
 
     // IProgress
@@ -252,4 +284,19 @@ public partial class UpdateCallback : IArchiveUpdateCallback
     }
 
     public int SetOperationResult(int operationResult) => 0;
+
+    public int CryptoGetTextPassword2(out int passwordIsDefined, out nint password)
+    {
+        if (_password != null)
+        {
+            passwordIsDefined = 1;
+            password = Marshal.StringToBSTR(_password);
+        }
+        else
+        {
+            passwordIsDefined = 0;
+            password = nint.Zero;
+        }
+        return 0;
+    }
 }

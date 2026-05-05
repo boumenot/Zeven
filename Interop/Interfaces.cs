@@ -175,3 +175,23 @@ public partial interface IArchiveUpdateCallback : IProgress
     [PreserveSig]
     int SetOperationResult(int operationResult);
 }
+
+// ── Password interfaces ─────────────────────────────────────────────────────
+
+/// <summary>ICryptoGetTextPassword — provides password for reading encrypted archives.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000500100000")]
+public partial interface ICryptoGetTextPassword
+{
+    [PreserveSig]
+    int CryptoGetTextPassword(out nint password); // BSTR*
+}
+
+/// <summary>ICryptoGetTextPassword2 — provides password for creating encrypted archives.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000500110000")]
+public partial interface ICryptoGetTextPassword2
+{
+    [PreserveSig]
+    int CryptoGetTextPassword2(out int passwordIsDefined, out nint password); // BSTR*
+}
