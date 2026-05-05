@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
@@ -9,40 +8,125 @@ using Zeven.Core.Interop;
 namespace Zeven.Core;
 
 /// <summary>
-/// A simple in-process pipe using a BlockingCollection of byte[] chunks.
-/// Writer writes chunks; reader reads from them sequentially.
-/// When writer is completed, reader gets EOF (Read returns 0).
+/// A fixed-size ring buffer that connects a writer Stream to a reader Stream.
+/// Writer blocks when the buffer is full; reader blocks when it's empty.
+/// When the writer is disposed, the reader gets EOF (Read returns 0).
+/// No per-Write allocations — data is copied directly into/out of the ring buffer.
 /// </summary>
-internal sealed class StreamPipe
+public sealed class StreamPipe
 {
-    private readonly BlockingCollection<byte[]> queue = new(boundedCapacity: 64);
-    private byte[]? current;
-    private int currentOffset;
+    /// <summary>Default buffer size: 64KB — optimal for throughput and GC pressure.</summary>
+    public const int DefaultBufferSize = 1 << 16;
+
+    private readonly byte[] buffer;
+    private int readPos;
+    private int writePos;
+    private int count;
+    private bool writerDone;
+    private readonly Lock syncLock = new();
+    private readonly ManualResetEventSlim dataAvailable = new(false);
+    private readonly ManualResetEventSlim spaceAvailable = new(true);
+
+    public StreamPipe(int bufferSize = DefaultBufferSize)
+    {
+        if (bufferSize < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bufferSize));
+        }
+        this.buffer = new byte[bufferSize];
+    }
 
     public Stream WriterStream => new WriterSide(this);
     public Stream ReaderStream => new ReaderSide(this);
 
-    private void WriteChunk(byte[] data) => this.queue.Add(data);
-    private void Complete() => this.queue.CompleteAdding();
+    private void WriteData(byte[] data, int offset, int length)
+    {
+        while (length > 0)
+        {
+            int written = 0;
+            lock (this.syncLock)
+            {
+                int free = this.buffer.Length - this.count;
+                if (free > 0)
+                {
+                    int toCopy = Math.Min(length, free);
+                    // Copy in up to two segments (wrap-around)
+                    int firstLen = Math.Min(toCopy, this.buffer.Length - this.writePos);
+                    Buffer.BlockCopy(data, offset, this.buffer, this.writePos, firstLen);
+                    if (toCopy > firstLen)
+                    {
+                        Buffer.BlockCopy(data, offset + firstLen, this.buffer, 0, toCopy - firstLen);
+                    }
+                    this.writePos = (this.writePos + toCopy) % this.buffer.Length;
+                    this.count += toCopy;
+                    written = toCopy;
+                    this.dataAvailable.Set();
+                    if (this.count == this.buffer.Length)
+                    {
+                        this.spaceAvailable.Reset();
+                    }
+                }
+                else
+                {
+                    this.spaceAvailable.Reset();
+                }
+            }
 
-    private int ReadData(byte[] buffer, int offset, int count)
+            if (written > 0)
+            {
+                offset += written;
+                length -= written;
+            }
+            else
+            {
+                this.spaceAvailable.Wait();
+            }
+        }
+    }
+
+    private int ReadData(byte[] data, int offset, int length)
     {
         while (true)
         {
-            if (this.current != null && this.currentOffset < this.current.Length)
+            lock (this.syncLock)
             {
-                int available = this.current.Length - this.currentOffset;
-                int toCopy = Math.Min(available, count);
-                Buffer.BlockCopy(this.current, this.currentOffset, buffer, offset, toCopy);
-                this.currentOffset += toCopy;
-                return toCopy;
+                if (this.count > 0)
+                {
+                    int toCopy = Math.Min(length, this.count);
+                    // Copy out up to two segments (wrap-around)
+                    int firstLen = Math.Min(toCopy, this.buffer.Length - this.readPos);
+                    Buffer.BlockCopy(this.buffer, this.readPos, data, offset, firstLen);
+                    if (toCopy > firstLen)
+                    {
+                        Buffer.BlockCopy(this.buffer, 0, data, offset + firstLen, toCopy - firstLen);
+                    }
+                    this.readPos = (this.readPos + toCopy) % this.buffer.Length;
+                    this.count -= toCopy;
+                    this.spaceAvailable.Set();
+                    if (this.count == 0)
+                    {
+                        this.dataAvailable.Reset();
+                    }
+                    return toCopy;
+                }
+
+                if (this.writerDone)
+                {
+                    return 0; // EOF
+                }
+                this.dataAvailable.Reset();
             }
 
-            if (!this.queue.TryTake(out this.current, Timeout.Infinite))
-            {
-                return 0; // completed
-            }
-            this.currentOffset = 0;
+            this.dataAvailable.Wait();
+        }
+    }
+
+    private void CompleteWriter()
+    {
+        lock (this.syncLock)
+        {
+            this.writerDone = true;
+            this.dataAvailable.Set(); // wake reader if waiting
         }
     }
 
@@ -62,9 +146,7 @@ internal sealed class StreamPipe
         {
             if (count > 0)
             {
-                var chunk = new byte[count];
-                Buffer.BlockCopy(buffer, offset, chunk, 0, count);
-                pipe.WriteChunk(chunk);
+                pipe.WriteData(buffer, offset, count);
             }
         }
 
@@ -72,7 +154,7 @@ internal sealed class StreamPipe
         {
             if (disposing)
             {
-                pipe.Complete();
+                pipe.CompleteWriter();
             }
             base.Dispose(disposing);
         }
@@ -107,6 +189,7 @@ public class Lzma2Stream : Stream
     private readonly Stream innerStream;
     private readonly CompressionMode mode;
     private readonly bool leaveOpen;
+    private readonly int pipeBufferSize;
     private bool disposed;
 
     // Compress mode state
@@ -121,11 +204,13 @@ public class Lzma2Stream : Stream
     public Lzma2Stream(Stream stream, CompressionMode mode, bool leaveOpen = false)
         : this(stream, mode, 5, leaveOpen) { }
 
-    public Lzma2Stream(Stream stream, CompressionMode mode, int level, bool leaveOpen = false)
+    public Lzma2Stream(Stream stream, CompressionMode mode, int level, bool leaveOpen = false,
+        int pipeBufferSize = StreamPipe.DefaultBufferSize)
     {
         this.innerStream = stream;
         this.mode = mode;
         this.leaveOpen = leaveOpen;
+        this.pipeBufferSize = pipeBufferSize;
 
         if (mode == CompressionMode.Compress)
         {
@@ -139,7 +224,7 @@ public class Lzma2Stream : Stream
 
     private void InitCompress(int level)
     {
-        var pipe = new StreamPipe();
+        var pipe = new StreamPipe(this.pipeBufferSize);
         this.pipeWriter = pipe.WriterStream;
         var pipeReader = pipe.ReaderStream;
 

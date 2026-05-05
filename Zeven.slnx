@@ -6,4 +6,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Zeven.Tests/Zeven.Tests.csproj" />
   </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Zeven.Benchmarks/Zeven.Benchmarks.csproj" />
+  </Folder>
 </Solution>
