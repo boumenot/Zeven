@@ -3,6 +3,8 @@ using System.Runtime.InteropServices.Marshalling;
 
 namespace SevenZipNet.Interop;
 
+// ── Stream interfaces ───────────────────────────────────────────────────────
+
 /// <summary>ISequentialInStream — provides sequential read access.</summary>
 [GeneratedComInterface]
 [Guid("23170F69-40C1-278A-0000-000300010000")]
@@ -22,6 +24,31 @@ public partial interface IInStream : ISequentialInStream
     int Seek(long offset, uint seekOrigin, nint newPosition);
 }
 
+/// <summary>ISequentialOutStream — provides sequential write access.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000300020000")]
+public partial interface ISequentialOutStream
+{
+    [PreserveSig]
+    int Write(nint data, uint size, out uint processedSize);
+}
+
+// ── Progress ────────────────────────────────────────────────────────────────
+
+/// <summary>IProgress — base progress interface (group=0, sub=5).</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000000050000")]
+public partial interface IProgress
+{
+    [PreserveSig]
+    int SetTotal(ulong total);
+
+    [PreserveSig]
+    int SetCompleted(nint completeValue); // const UInt64* — nullable
+}
+
+// ── Archive open ────────────────────────────────────────────────────────────
+
 /// <summary>IArchiveOpenCallback — receives progress during archive open.</summary>
 [GeneratedComInterface]
 [Guid("23170F69-40C1-278A-0000-000600100000")]
@@ -33,6 +60,25 @@ public partial interface IArchiveOpenCallback
     [PreserveSig]
     int SetCompleted(nint files, nint bytes);
 }
+
+// ── Archive extract ─────────────────────────────────────────────────────────
+
+/// <summary>IArchiveExtractCallback — provides output streams during extraction.</summary>
+[GeneratedComInterface]
+[Guid("23170F69-40C1-278A-0000-000600200000")]
+public partial interface IArchiveExtractCallback : IProgress
+{
+    [PreserveSig]
+    int GetStream(uint index, out nint outStream, int askExtractMode);
+
+    [PreserveSig]
+    int PrepareOperation(int askExtractMode);
+
+    [PreserveSig]
+    int SetOperationResult(int opRes);
+}
+
+// ── IInArchive ──────────────────────────────────────────────────────────────
 
 /// <summary>
 /// IInArchive — main interface for reading archives.

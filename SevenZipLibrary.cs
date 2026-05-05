@@ -149,4 +149,71 @@ public sealed class ArchiveHandle : IDisposable
         _streamWrapper = null;
         _openCallback = null;
     }
+
+    /// <summary>Extract all files to memory. Returns dict of path → byte[].</summary>
+    public Dictionary<string, byte[]> ExtractAll()
+    {
+        var callback = new ExtractCallback(Archive);
+        CallExtract(null, 0, callback);
+
+        // Map index→bytes to path→bytes
+        Archive.GetNumberOfItems(out uint count);
+        var result = new Dictionary<string, byte[]>();
+        for (uint i = 0; i < count; i++)
+        {
+            if (!callback.ExtractedData.TryGetValue(i, out var data)) continue;
+            PropVariant pv = default;
+            Archive.GetProperty(i, PropId.kpidPath, ref pv);
+            string path = pv.GetBstr() ?? i.ToString();
+            NativeMethods.PropVariantClear(ref pv);
+            result[path] = data;
+        }
+        return result;
+    }
+
+    /// <summary>Extract specific items by index. Returns dict of index → byte[].</summary>
+    public Dictionary<uint, byte[]> Extract(uint[] indices)
+    {
+        var callback = new ExtractCallback(Archive);
+        CallExtract(indices, 0, callback);
+        return callback.ExtractedData;
+    }
+
+    /// <summary>Test archive integrity (extract in verify-only mode).</summary>
+    public void Test()
+    {
+        var callback = new ExtractCallback(Archive);
+        // numItems = 0xFFFFFFFF means "all", testMode = 1
+        CallExtract(null, 1, callback);
+    }
+
+    private void CallExtract(uint[]? indices, int testMode, ExtractCallback callback)
+    {
+        var cw = ComWrappers;
+        nint callbackCcw = cw.GetOrCreateComInterfaceForObject(callback, CreateComInterfaceFlags.None);
+        Guid iidExtractCb = new("23170F69-40C1-278A-0000-000600200000");
+        Marshal.QueryInterface(callbackCcw, ref iidExtractCb, out nint callbackPtr);
+
+        int hr;
+        if (indices == null)
+        {
+            // Extract all: pass NULL indices and numItems = 0xFFFFFFFF
+            hr = Archive.Extract(nint.Zero, 0xFFFFFFFF, testMode, callbackPtr);
+        }
+        else
+        {
+            unsafe
+            {
+                fixed (uint* pIndices = indices)
+                {
+                    hr = Archive.Extract((nint)pIndices, (uint)indices.Length, testMode, callbackPtr);
+                }
+            }
+        }
+
+        if (callbackPtr != nint.Zero) Marshal.Release(callbackPtr);
+        Marshal.Release(callbackCcw);
+        GC.KeepAlive(callback);
+        Marshal.ThrowExceptionForHR(hr);
+    }
 }
