@@ -7,7 +7,7 @@ namespace SevenZipNet.Interop;
 /// The union portion starts at offset 8 and can hold scalars or a pointer.
 /// </summary>
 [StructLayout(LayoutKind.Explicit, Size = 24)]
-internal struct PropVariant
+public struct PropVariant
 {
     [FieldOffset(0)] public ushort VarType;
     [FieldOffset(2)] public ushort Reserved1;
@@ -60,14 +60,14 @@ internal struct PropVariant
 }
 
 /// <summary>P/Invoke helpers for PROPVARIANT lifetime management.</summary>
-internal static partial class NativeMethods
+public static partial class NativeMethods
 {
     [LibraryImport("ole32.dll")]
-    internal static partial int PropVariantClear(ref PropVariant pvar);
+    public static partial int PropVariantClear(ref PropVariant pvar);
 }
 
 /// <summary>7-Zip property IDs from PropID.h.</summary>
-internal static class PropId
+public static class PropId
 {
     public const uint kpidNoProperty = 0;
     public const uint kpidPath       = 3;
@@ -85,7 +85,7 @@ internal static class PropId
 }
 
 /// <summary>Handler property IDs (NArchive::NHandlerPropID).</summary>
-internal static class HandlerPropId
+public static class HandlerPropId
 {
     public const uint kName       = 0;
     public const uint kClassID    = 1;

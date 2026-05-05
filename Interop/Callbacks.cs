@@ -7,7 +7,7 @@ namespace SevenZipNet.Interop;
 /// Passed to native code as a COM Callable Wrapper via [GeneratedComClass].
 /// </summary>
 [GeneratedComClass]
-internal partial class InStreamWrapper : IInStream
+public partial class InStreamWrapper : IInStream
 {
     private readonly Stream _stream;
 
@@ -59,7 +59,7 @@ internal partial class InStreamWrapper : IInStream
 /// Minimal IArchiveOpenCallback — ignores progress, no password support.
 /// </summary>
 [GeneratedComClass]
-internal partial class ArchiveOpenCallback : IArchiveOpenCallback
+public partial class ArchiveOpenCallback : IArchiveOpenCallback
 {
     public int SetTotal(nint files, nint bytes) => 0;
     public int SetCompleted(nint files, nint bytes) => 0;

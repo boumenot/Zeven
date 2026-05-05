@@ -6,7 +6,7 @@ namespace SevenZipNet.Interop;
 /// <summary>ISequentialInStream — provides sequential read access.</summary>
 [GeneratedComInterface]
 [Guid("23170F69-40C1-278A-0000-000300010000")]
-internal partial interface ISequentialInStream
+public partial interface ISequentialInStream
 {
     [PreserveSig]
     int Read(nint data, uint size, out uint processedSize);
@@ -15,7 +15,7 @@ internal partial interface ISequentialInStream
 /// <summary>IInStream — adds seeking to ISequentialInStream.</summary>
 [GeneratedComInterface]
 [Guid("23170F69-40C1-278A-0000-000300030000")]
-internal partial interface IInStream : ISequentialInStream
+public partial interface IInStream : ISequentialInStream
 {
     // newPosition is nint (not out ulong) because 7-Zip's InStream_SeekSet passes NULL
     [PreserveSig]
@@ -25,7 +25,7 @@ internal partial interface IInStream : ISequentialInStream
 /// <summary>IArchiveOpenCallback — receives progress during archive open.</summary>
 [GeneratedComInterface]
 [Guid("23170F69-40C1-278A-0000-000600100000")]
-internal partial interface IArchiveOpenCallback
+public partial interface IArchiveOpenCallback
 {
     [PreserveSig]
     int SetTotal(nint files, nint bytes);
@@ -40,7 +40,7 @@ internal partial interface IArchiveOpenCallback
 /// </summary>
 [GeneratedComInterface]
 [Guid("23170F69-40C1-278A-0000-000600600000")]
-internal partial interface IInArchive
+public partial interface IInArchive
 {
     [PreserveSig]
     int Open(nint stream, nint maxCheckStartPosition, nint openCallback);
