@@ -50,6 +50,30 @@ var extracted = handle.ExtractAll(); // Dict<string, byte[]>
 
 - **`7zra.dll` / `7zxr.dll`** — Reduced codec variants. Smaller but support fewer compression methods.
 
+### Formats vs Codecs
+
+7-Zip has two distinct concepts that are easy to confuse:
+
+- A **format** (handler) is a container — it knows how to parse and write a specific archive structure (e.g., `.7z`, `.zip`, `.tar`). Each format handler is a COM object created via `CreateObject` with a format-specific CLSID. Formats report whether they support writing via `GetHandlerProperty2(kUpdate)`.
+
+- A **codec** is a compression/encryption algorithm (e.g., LZMA2, Deflate, PPMd, AES). Codecs are used *inside* format handlers. A format like `.7z` can use many different codecs.
+
+This distinction matters in practice:
+
+| Name | As a **format** (`.pmd` container) | As a **codec** inside `.7z` |
+|---|---|---|
+| PPMd | ✅ Read / ❌ Write | ✅ Read / ✅ Write (`-m0=PPMd`) |
+| LZMA | ✅ Read / ❌ Write (`.lzma`) | ✅ Read / ✅ Write (`-m0=LZMA`) |
+| BZip2 | ✅ Read / ✅ Write (`.bz2`) | ✅ Read / ✅ Write |
+| Deflate | — (no standalone format) | ✅ Read / ✅ Write |
+| zstd | ✅ Read / ❌ Write (`.zst`) | — (not a 7z codec) |
+
+**Writable formats** (support `IOutArchive`): 7z, zip, tar, gzip, bzip2, xz, wim
+
+**Read-only formats**: rar, rar5, iso, cab, dmg, ntfs, ext, vhd, pe, elf, and ~40 more
+
+The full list of read/write support is reported at runtime via `GetHandlerProperty2(kUpdate)` — see `SevenZipLibrary.Formats`.
+
 ### Exported Functions
 
 All DLLs export the same core COM factory function:
