@@ -1,6 +1,8 @@
 <Solution>
-  <Folder Name="/Tests/">
-    <Project Path="Tests/SevenZipNet.Tests.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/SevenZipNet/SevenZipNet.csproj" />
   </Folder>
-  <Project Path="SevenZipNet.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="tests/SevenZipNet.Tests/SevenZipNet.Tests.csproj" />
+  </Folder>
 </Solution>
