@@ -21,6 +21,10 @@ public sealed class ZevenLibrary : IDisposable
 
     private readonly nint lib;
     private readonly CreateObjectFunc createObject;
+    private readonly CreateEncoderFunc createEncoder;
+    private readonly CreateDecoderFunc createDecoder;
+    private readonly GetNumberOfMethodsFunc getNumberOfMethods;
+    private readonly GetMethodPropertyFunc getMethodProperty;
     private readonly StrategyBasedComWrappers comWrappers = new();
     private bool disposed;
 
@@ -36,6 +40,15 @@ public sealed class ZevenLibrary : IDisposable
             NativeLibrary.GetExport(this.lib, "GetNumberOfFormats"));
         var getHandlerProperty2 = Marshal.GetDelegateForFunctionPointer<GetHandlerProperty2Func>(
             NativeLibrary.GetExport(this.lib, "GetHandlerProperty2"));
+
+        this.createEncoder = Marshal.GetDelegateForFunctionPointer<CreateEncoderFunc>(
+            NativeLibrary.GetExport(this.lib, "CreateEncoder"));
+        this.createDecoder = Marshal.GetDelegateForFunctionPointer<CreateDecoderFunc>(
+            NativeLibrary.GetExport(this.lib, "CreateDecoder"));
+        this.getNumberOfMethods = Marshal.GetDelegateForFunctionPointer<GetNumberOfMethodsFunc>(
+            NativeLibrary.GetExport(this.lib, "GetNumberOfMethods"));
+        this.getMethodProperty = Marshal.GetDelegateForFunctionPointer<GetMethodPropertyFunc>(
+            NativeLibrary.GetExport(this.lib, "GetMethodProperty"));
 
         this.Formats = LoadFormats(getNumberOfFormats, getHandlerProperty2);
     }
@@ -71,6 +84,42 @@ public sealed class ZevenLibrary : IDisposable
     }
 
     public StrategyBasedComWrappers ComWrappers => this.comWrappers;
+
+    /// <summary>Find the index of a codec by its 7-Zip codec ID (e.g., 0x21 for LZMA2).</summary>
+    /// <returns>Codec index, or -1 if not found.</returns>
+    public int FindCodecIndex(ulong codecId)
+    {
+        this.getNumberOfMethods(out uint count);
+        for (uint i = 0; i < count; i++)
+        {
+            PropVariant pv = default;
+            this.getMethodProperty(i, MethodPropId.Id, ref pv);
+            ulong id = pv.GetUInt64();
+            if (id == codecId)
+            {
+                return (int)i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>Create an encoder COM object for the codec at the given index.</summary>
+    public nint CreateEncoderObject(uint index)
+    {
+        Guid iid = Iid.ICompressCoder;
+        int hr = this.createEncoder(index, in iid, out nint ptr);
+        Marshal.ThrowExceptionForHR(hr);
+        return ptr;
+    }
+
+    /// <summary>Create a decoder COM object for the codec at the given index.</summary>
+    public nint CreateDecoderObject(uint index)
+    {
+        Guid iid = Iid.ICompressCoder;
+        int hr = this.createDecoder(index, in iid, out nint ptr);
+        Marshal.ThrowExceptionForHR(hr);
+        return ptr;
+    }
 
     /// <summary>Create a .7z archive from in-memory file data.</summary>
     public void CreateArchive(Guid classId, Stream outputStream, Dictionary<string, byte[]> files, string? password = null)
