@@ -13,10 +13,10 @@ public class ZstdOptions : ICodecOptions
     public ulong CodecId => Interop.CodecId.Zstd;
 
     /// <summary>Compression level. Default: 3.</summary>
-    public int Level { get; set; } = 3;
+    public int Level { get; init; } = 3;
 
     /// <summary>Maximum uncompressed bytes per chunk for streaming compression. Default: 16 MB. Only used by ZstdStream; ZstdCodec writes a single chunk.</summary>
-    public int ChunkSize { get; set; } = DefaultChunkSize;
+    public int ChunkSize { get; init; } = DefaultChunkSize;
 
     public Dictionary<uint, object> GetProperties()
     {
