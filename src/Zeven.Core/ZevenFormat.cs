@@ -78,10 +78,25 @@ internal static class ZevenFormat
         if (header.CodecId != expectedCodecId)
         {
             throw new InvalidDataException(
-                $"Codec mismatch: expected 0x{expectedCodecId:X}, got 0x{header.CodecId:X}.");
+                $"Codec mismatch: expected {CodecName(expectedCodecId)}, got {CodecName(header.CodecId)}.");
         }
         return header.PropertyHeader;
     }
+
+    private static string CodecName(ulong codecId) => codecId switch
+    {
+        Interop.CodecId.Lzma2   => $"LZMA2 (0x{codecId:X})",
+        Interop.CodecId.Lzma    => $"LZMA (0x{codecId:X})",
+        Interop.CodecId.Ppmd    => $"PPMd (0x{codecId:X})",
+        Interop.CodecId.Zstd    => $"Zstd (0x{codecId:X})",
+        Interop.CodecId.Brotli  => $"Brotli (0x{codecId:X})",
+        Interop.CodecId.Lz4     => $"LZ4 (0x{codecId:X})",
+        Interop.CodecId.Lz5     => $"LZ5 (0x{codecId:X})",
+        Interop.CodecId.Lizard  => $"Lizard (0x{codecId:X})",
+        Interop.CodecId.Deflate => $"Deflate (0x{codecId:X})",
+        Interop.CodecId.BZip2   => $"BZip2 (0x{codecId:X})",
+        _                       => $"Unknown (0x{codecId:X})",
+    };
 
     /// <summary>Writes a data chunk: sizes + compressed data + CRC32.</summary>
     public static void WriteChunk(Stream output, long uncompressedSize,
