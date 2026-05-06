@@ -132,7 +132,7 @@ The **codecs** available inside `.7z` (and sometimes `.zip`) are:
 | RISCV | ✅ | ✅ | — | RISC-V executable filter |
 | 7zAES | ✅ | ✅ | — | AES-256 encryption |
 | Zstandard | ✅ | ✅ | `ZstdCodec` / `ZstdStream` | Via 7-Zip-zstd; chunked format |
-| Brotli | ✅ | ✅ | `BrotliCodec` / `ZevenBrotliStream` | Via 7-Zip-zstd; chunked format |
+| Brotli | ✅ | ✅ | `BrotliCodec` / `BrotliStream` | Via 7-Zip-zstd; chunked format |
 | LZ4 | ✅ | ✅ | `Lz4Codec` / `Lz4Stream` | Via 7-Zip-zstd; chunked format |
 | LZ5 | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71105`) |
 | Lizard | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71106`) |
@@ -191,9 +191,19 @@ Key interface IIDs (all under `{23170F69-40C1-278A-0000-00ggnnss0000}`):
 
 ## Zeven Stream Format
 
-The batch codec classes (`PpmdCodec`, `ZstdCodec`, `BrotliCodec`, `Lz4Codec`) and their streaming counterparts (`PpmdStream`, `ZstdStream`, `ZevenBrotliStream`, `Lz4Stream`) all use the same chunked wire format. This format is **not** compatible with 7z.exe or the .7z archive format.
+The following codecs have batch and streaming APIs that use the Zeven chunked wire format:
 
-> **Note:** The streaming Brotli class is named `ZevenBrotliStream` to avoid collision with `System.IO.Compression.BrotliStream`.
+| Batch API | Streaming API | Codec |
+|-----------|--------------|-------|
+| `Lzma2Codec` | `Lzma2Stream` | LZMA2 |
+| `PpmdCodec` | `PpmdStream` | PPMd |
+| `ZstdCodec` | `ZstdStream` | Zstandard |
+| `BrotliCodec` | `BrotliStream` | Brotli |
+| `Lz4Codec` | `Lz4Stream` | LZ4 |
+
+> **Note:** `Zeven.Core.BrotliStream` shares its name with `System.IO.Compression.BrotliStream`. Use a namespace alias or fully qualified name if both are needed in the same file.
+
+This format is **not** compatible with 7z.exe or the .7z archive format.
 
 ### Why chunking?
 
@@ -207,7 +217,8 @@ Many codecs also lack end-of-stream markers — the decoder must be told the exa
 Stream header (16 bytes fixed + N property + 4 CRC):
   [4 bytes magic: "ZVN\x01"]               Zeven format v1
   [4 bytes codec ID, LE]                   7-Zip codec ID (e.g., 0x030401 = PPMd)
-  [2 bytes property header length, LE]     Size of property data
+  [2 bytes property header length, LE]     Size of property data (varies by codec; stored
+                                           so the format is self-describing)
   [6 bytes reserved, zero]                 Future use
   [N bytes property header]                Codec-specific properties
   [4 bytes CRC32, LE]                      IEEE CRC-32 of property header

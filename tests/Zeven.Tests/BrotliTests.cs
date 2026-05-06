@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using Zeven.Core;
 using Zeven.Core.Interop;
+using BrotliStream = Zeven.Core.BrotliStream;
 
 namespace Zeven.Tests;
 
@@ -71,11 +72,11 @@ public class BrotliCodecTests
     }
 }
 
-public class ZevenBrotliStreamTests
+public class BrotliStreamTests
 {
     const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
 
-    static ZevenBrotliStreamTests() => ZevenLibrary.Load(DllPath);
+    static BrotliStreamTests() => ZevenLibrary.Load(DllPath);
 
     [Fact]
     public void WriteRead_RoundTrip()
@@ -84,13 +85,13 @@ public class ZevenBrotliStreamTests
         new Random(42).NextBytes(original);
 
         using var compressed = new MemoryStream();
-        using (var compressor = new ZevenBrotliStream(compressed, CompressionMode.Compress, leaveOpen: true))
+        using (var compressor = new BrotliStream(compressed, CompressionMode.Compress, leaveOpen: true))
         {
             compressor.Write(original);
         }
 
         compressed.Position = 0;
-        using var decompressor = new ZevenBrotliStream(compressed, CompressionMode.Decompress);
+        using var decompressor = new BrotliStream(compressed, CompressionMode.Decompress);
         using var result = new MemoryStream();
         decompressor.CopyTo(result);
 
@@ -104,7 +105,7 @@ public class ZevenBrotliStreamTests
         new Random(42).NextBytes(original);
 
         using var compressed = new MemoryStream();
-        using (var compressor = new ZevenBrotliStream(compressed, CompressionMode.Compress, leaveOpen: true))
+        using (var compressor = new BrotliStream(compressed, CompressionMode.Compress, leaveOpen: true))
         {
             for (int i = 0; i < original.Length; i += 100)
             {
@@ -114,7 +115,7 @@ public class ZevenBrotliStreamTests
         }
 
         compressed.Position = 0;
-        using var decompressor = new ZevenBrotliStream(compressed, CompressionMode.Decompress);
+        using var decompressor = new BrotliStream(compressed, CompressionMode.Decompress);
         using var result = new MemoryStream();
         decompressor.CopyTo(result);
 
@@ -129,14 +130,14 @@ public class ZevenBrotliStreamTests
 
         using var compressed = new MemoryStream();
         var options = new BrotliOptions { ChunkSize = 1024 };
-        using (var compressor = new ZevenBrotliStream(compressed, CompressionMode.Compress, options,
+        using (var compressor = new BrotliStream(compressed, CompressionMode.Compress, options,
                 leaveOpen: true))
         {
             compressor.Write(original);
         }
 
         compressed.Position = 0;
-        using var decompressor = new ZevenBrotliStream(compressed, CompressionMode.Decompress);
+        using var decompressor = new BrotliStream(compressed, CompressionMode.Decompress);
         using var result = new MemoryStream();
         decompressor.CopyTo(result);
 
@@ -153,7 +154,7 @@ public class ZevenBrotliStreamTests
         BrotliCodec.Compress(new MemoryStream(original), compressed);
 
         compressed.Position = 0;
-        using var decompressor = new ZevenBrotliStream(compressed, CompressionMode.Decompress);
+        using var decompressor = new BrotliStream(compressed, CompressionMode.Decompress);
         using var result = new MemoryStream();
         decompressor.CopyTo(result);
 
@@ -167,7 +168,7 @@ public class ZevenBrotliStreamTests
         new Random(42).NextBytes(original);
 
         using var compressed = new MemoryStream();
-        using (var compressor = new ZevenBrotliStream(compressed, CompressionMode.Compress, leaveOpen: true))
+        using (var compressor = new BrotliStream(compressed, CompressionMode.Compress, leaveOpen: true))
         {
             compressor.Write(original);
         }
@@ -183,13 +184,13 @@ public class ZevenBrotliStreamTests
     public void EmptyInput_ProducesValidStream()
     {
         using var compressed = new MemoryStream();
-        using (var compressor = new ZevenBrotliStream(compressed, CompressionMode.Compress, leaveOpen: true))
+        using (var compressor = new BrotliStream(compressed, CompressionMode.Compress, leaveOpen: true))
         {
             // Write nothing
         }
 
         compressed.Position = 0;
-        using var decompressor = new ZevenBrotliStream(compressed, CompressionMode.Decompress);
+        using var decompressor = new BrotliStream(compressed, CompressionMode.Decompress);
         using var result = new MemoryStream();
         decompressor.CopyTo(result);
 
@@ -203,13 +204,13 @@ public class ZevenBrotliStreamTests
         BrotliCodec.Compress(new MemoryStream(new byte[1]), compressed);
         compressed.Position = 0;
 
-        using (var compressor = new ZevenBrotliStream(new MemoryStream(), CompressionMode.Compress))
+        using (var compressor = new BrotliStream(new MemoryStream(), CompressionMode.Compress))
         {
             Assert.True(compressor.CanWrite);
             Assert.False(compressor.CanRead);
         }
 
-        using (var decompressor = new ZevenBrotliStream(compressed, CompressionMode.Decompress))
+        using (var decompressor = new BrotliStream(compressed, CompressionMode.Decompress))
         {
             Assert.True(decompressor.CanRead);
             Assert.False(decompressor.CanWrite);

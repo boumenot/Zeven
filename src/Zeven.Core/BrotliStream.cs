@@ -7,7 +7,7 @@ namespace Zeven.Core;
 /// Incremental Brotli compression/decompression stream matching the DeflateStream pattern.
 /// Uses the Zeven chunked wire format — no background threads.
 ///
-/// Named ZevenBrotliStream to avoid collision with System.IO.Compression.BrotliStream.
+/// Note: This class shares its name with System.IO.Compression.BrotliStream. Use a namespace alias or fully qualified name if both are needed.
 ///
 /// Compress mode: buffers writes into a chunk buffer, flushing full chunks to the
 /// inner stream via <see cref="ZevenFormat"/> framing.
@@ -15,7 +15,7 @@ namespace Zeven.Core;
 /// Decompress mode: reads chunks from the inner stream, decompresses each one, and
 /// serves data from the decompressed buffer.
 /// </summary>
-public class ZevenBrotliStream : Stream
+public class BrotliStream : Stream
 {
     private readonly Stream innerStream;
     private readonly CompressionMode mode;
@@ -34,10 +34,10 @@ public class ZevenBrotliStream : Stream
     private MemoryStream? decompressedBuffer;
     private bool eof;
 
-    public ZevenBrotliStream(Stream stream, CompressionMode mode, bool leaveOpen = false)
+    public BrotliStream(Stream stream, CompressionMode mode, bool leaveOpen = false)
         : this(stream, mode, null, leaveOpen) { }
 
-    public ZevenBrotliStream(Stream stream, CompressionMode mode, BrotliOptions? options,
+    public BrotliStream(Stream stream, CompressionMode mode, BrotliOptions? options,
             bool leaveOpen = false)
     {
         this.innerStream = stream;

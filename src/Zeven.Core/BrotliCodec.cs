@@ -4,7 +4,7 @@ namespace Zeven.Core;
 
 /// <summary>
 /// Batch Brotli compression/decompression using the Zeven chunked wire format.
-/// Processes entire streams in one call — for incremental streaming, use ZevenBrotliStream.
+/// Processes entire streams in one call — for incremental streaming, use BrotliStream.
 /// </summary>
 public static class BrotliCodec
 {

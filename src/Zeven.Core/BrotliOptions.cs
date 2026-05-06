@@ -15,7 +15,7 @@ public class BrotliOptions : ICodecOptions
     /// <summary>Compression level 0-11. Default: 3.</summary>
     public int Level { get; set; } = 3;
 
-    /// <summary>Maximum uncompressed bytes per chunk for streaming compression. Default: 16 MB. Only used by ZevenBrotliStream; BrotliCodec writes a single chunk.</summary>
+    /// <summary>Maximum uncompressed bytes per chunk for streaming compression. Default: 16 MB. Only used by BrotliStream; BrotliCodec writes a single chunk.</summary>
     public int ChunkSize { get; set; } = DefaultChunkSize;
 
     public Dictionary<uint, object> GetProperties()
