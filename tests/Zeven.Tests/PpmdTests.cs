@@ -334,6 +334,14 @@ public class PpmdStreamTests
         using var stream = new PpmdStream(compressed, CompressionMode.Decompress);
         Assert.Throws<InvalidOperationException>(() => stream.Write(new byte[1], 0, 1));
     }
+
+    [Fact]
+    public void Dispose_CalledTwice_DoesNotThrow()
+    {
+        var stream = new PpmdStream(new MemoryStream(), CompressionMode.Compress);
+        stream.Dispose();
+        stream.Dispose(); // should not throw
+    }
 }
 
 public class ZevenFormatTests

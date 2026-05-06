@@ -262,4 +262,12 @@ public class Lz4StreamTests
         using var stream = new Lz4Stream(compressed, CompressionMode.Decompress);
         Assert.Throws<InvalidOperationException>(() => stream.Write(new byte[1], 0, 1));
     }
+
+    [Fact]
+    public void Dispose_CalledTwice_DoesNotThrow()
+    {
+        var stream = new Lz4Stream(new MemoryStream(), CompressionMode.Compress);
+        stream.Dispose();
+        stream.Dispose(); // should not throw
+    }
 }

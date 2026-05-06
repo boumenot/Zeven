@@ -217,6 +217,14 @@ public class Lzma2StreamTests
         Assert.Throws<InvalidOperationException>(() => stream.Write(new byte[1], 0, 1));
     }
 
+    [Fact]
+    public void Dispose_CalledTwice_DoesNotThrow()
+    {
+        var stream = new Lzma2Stream(new MemoryStream(), CompressionMode.Compress);
+        stream.Dispose();
+        stream.Dispose(); // should not throw
+    }
+
     /// <summary>A stream that throws on Write — used to test error propagation.</summary>
     private class BrokenWriteStream : MemoryStream
     {
