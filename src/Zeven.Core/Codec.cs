@@ -36,44 +36,69 @@ internal static class Codec
         nint encoderPtr = lib.CreateEncoderObject((uint)codecIndex);
         var cw = lib.ComWrappers;
 
-        // Set compression properties
-        Guid iidSetProps = Iid.ICompressSetCoderProperties;
-        Marshal.QueryInterface(encoderPtr, ref iidSetProps, out nint setPropsPtr);
-        if (setPropsPtr != nint.Zero)
+        try
         {
-            var setProps = (ICompressSetCoderProperties)cw.GetOrCreateObjectForComInstance(
-                setPropsPtr,
-                CreateObjectFlags.UniqueInstance);
-            ApplyProperties(options, setProps);
-            Marshal.Release(setPropsPtr);
-        }
+            // Set compression properties
+            Guid iidSetProps = Iid.ICompressSetCoderProperties;
+            Marshal.QueryInterface(encoderPtr, ref iidSetProps, out nint setPropsPtr);
+            if (setPropsPtr != nint.Zero)
+            {
+                try
+                {
+                    var setProps = (ICompressSetCoderProperties)cw.GetOrCreateObjectForComInstance(
+                        setPropsPtr,
+                        CreateObjectFlags.UniqueInstance);
+                    ApplyProperties(options, setProps);
+                }
+                finally
+                {
+                    Marshal.Release(setPropsPtr);
+                }
+            }
 
-        // Write property header (size varies by codec)
-        Guid iidWriteProps = Iid.ICompressWriteCoderProperties;
-        Marshal.QueryInterface(encoderPtr, ref iidWriteProps, out nint writePropsPtr);
-        if (writePropsPtr != nint.Zero)
+            // Write property header (size varies by codec)
+            Guid iidWriteProps = Iid.ICompressWriteCoderProperties;
+            Marshal.QueryInterface(encoderPtr, ref iidWriteProps, out nint writePropsPtr);
+            if (writePropsPtr != nint.Zero)
+            {
+                try
+                {
+                    var writeProps = (ICompressWriteCoderProperties)cw.GetOrCreateObjectForComInstance(
+                        writePropsPtr,
+                        CreateObjectFlags.UniqueInstance);
+                    var outWrapper = new OutStreamWrapper(output);
+                    nint outCcw = cw.GetOrCreateComInterfaceForObject(
+                        outWrapper, CreateComInterfaceFlags.None);
+                    Guid iidSeqOut = Iid.ISequentialOutStream;
+                    Marshal.QueryInterface(outCcw, ref iidSeqOut, out nint outPtr);
+
+                    try
+                    {
+                        writeProps.WriteCoderProperties(outPtr);
+                    }
+                    finally
+                    {
+                        if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
+                        Marshal.Release(outCcw);
+                        GC.KeepAlive(outWrapper);
+                    }
+                }
+                finally
+                {
+                    Marshal.Release(writePropsPtr);
+                }
+            }
+
+            // Encode
+            var coder = (ICompressCoder)cw.GetOrCreateObjectForComInstance(
+                encoderPtr,
+                CreateObjectFlags.UniqueInstance);
+            CodeStreams(coder, cw, input, output);
+        }
+        finally
         {
-            var writeProps = (ICompressWriteCoderProperties)cw.GetOrCreateObjectForComInstance(
-                writePropsPtr,
-                CreateObjectFlags.UniqueInstance);
-            var outWrapper = new OutStreamWrapper(output);
-            nint outCcw = cw.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
-            Guid iidSeqOut = Iid.ISequentialOutStream;
-            Marshal.QueryInterface(outCcw, ref iidSeqOut, out nint outPtr);
-
-            writeProps.WriteCoderProperties(outPtr);
-
-            if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
-            Marshal.Release(outCcw);
-            Marshal.Release(writePropsPtr);
-            GC.KeepAlive(outWrapper);
+            Marshal.Release(encoderPtr);
         }
-
-        // Encode
-        var coder = (ICompressCoder)cw.GetOrCreateObjectForComInstance(
-            encoderPtr,
-            CreateObjectFlags.UniqueInstance);
-        CodeStreams(coder, cw, input, output);
     }
 
     public static void Decompress(ulong codecId, Stream input, Stream output)
@@ -106,28 +131,41 @@ internal static class Codec
         nint decoderPtr = lib.CreateDecoderObject((uint)codecIndex);
         var cw = lib.ComWrappers;
 
-        // Set decoder properties
-        Guid iidSetDecProps = Iid.ICompressSetDecoderProperties2;
-        Marshal.QueryInterface(decoderPtr, ref iidSetDecProps, out nint setDecPropsPtr);
-        if (setDecPropsPtr != nint.Zero)
+        try
         {
-            var setDecProps = (ICompressSetDecoderProperties2)cw.GetOrCreateObjectForComInstance(
-                setDecPropsPtr,
-                CreateObjectFlags.UniqueInstance);
-            unsafe
+            // Set decoder properties
+            Guid iidSetDecProps = Iid.ICompressSetDecoderProperties2;
+            Marshal.QueryInterface(decoderPtr, ref iidSetDecProps, out nint setDecPropsPtr);
+            if (setDecPropsPtr != nint.Zero)
             {
-                fixed (byte* pProps = propBytes)
+                try
                 {
-                    setDecProps.SetDecoderProperties2((nint)pProps, (uint)propertyHeaderSize);
+                    var setDecProps = (ICompressSetDecoderProperties2)cw.GetOrCreateObjectForComInstance(
+                        setDecPropsPtr,
+                        CreateObjectFlags.UniqueInstance);
+                    unsafe
+                    {
+                        fixed (byte* pProps = propBytes)
+                        {
+                            setDecProps.SetDecoderProperties2((nint)pProps, (uint)propertyHeaderSize);
+                        }
+                    }
+                }
+                finally
+                {
+                    Marshal.Release(setDecPropsPtr);
                 }
             }
-            Marshal.Release(setDecPropsPtr);
-        }
 
-        // Decode
-        var coder = (ICompressCoder)cw.GetOrCreateObjectForComInstance(
-            decoderPtr, CreateObjectFlags.UniqueInstance);
-        CodeStreams(coder, cw, input, output, outSize: uncompressedSize);
+            // Decode
+            var coder = (ICompressCoder)cw.GetOrCreateObjectForComInstance(
+                decoderPtr, CreateObjectFlags.UniqueInstance);
+            CodeStreams(coder, cw, input, output, outSize: uncompressedSize);
+        }
+        finally
+        {
+            Marshal.Release(decoderPtr);
+        }
     }
 
     /// <summary>
