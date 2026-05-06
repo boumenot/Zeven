@@ -8,10 +8,15 @@ namespace Zeven.Core;
 /// </summary>
 public class Lzma2Options : ICodecOptions
 {
+    public const int DefaultChunkSize = 16 * 1024 * 1024;
+
     public ulong CodecId => Interop.CodecId.Lzma2;
 
     /// <summary>Compression level 0-9. Default: 5.</summary>
     public int Level { get; set; } = 5;
+
+    /// <summary>Maximum uncompressed bytes per chunk for streaming compression. Default: 16 MB. Only used by Lzma2Stream; Lzma2Codec writes a single chunk.</summary>
+    public int ChunkSize { get; set; } = DefaultChunkSize;
 
     /// <summary>Dictionary size in bytes (e.g., 64*1024*1024 for 64MB). Up to 4GB.</summary>
     public long? DictionarySize { get; set; }

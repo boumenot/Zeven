@@ -120,13 +120,28 @@ public class Lzma2CodecTests
     [Fact]
     public void Decompress_InvalidHeader_Throws()
     {
-        // First byte is LZMA2 property byte; 0xFF is invalid
+        // Not a valid ZevenFormat header
         var garbage = new byte[] { 0xFF, 0x00, 0x00 };
 
         Assert.ThrowsAny<Exception>(() =>
         {
             Lzma2Codec.Decompress(new MemoryStream(garbage), new MemoryStream());
         });
+    }
+
+    [Fact]
+    public void Compress_WritesZevenHeader()
+    {
+        var original = new byte[100];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        Lzma2Codec.Compress(new MemoryStream(original), compressed);
+
+        compressed.Position = 0;
+        byte[] magic = new byte[4];
+        compressed.ReadExactly(magic);
+        Assert.Equal("ZVN\x01"u8.ToArray(), magic);
     }
 
     [Fact]

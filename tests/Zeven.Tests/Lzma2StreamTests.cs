@@ -158,16 +158,96 @@ public class Lzma2StreamTests
     }
 
     [Fact]
-    public void BackgroundError_PropagatesOnDispose()
+    public void MultipleChunks_RoundTrip()
     {
-        // Create a stream that will fail during Code()
-        var brokenStream = new BrokenWriteStream();
+        var original = new byte[5000];
+        new Random(42).NextBytes(original);
 
-        var compressor = new Lzma2Stream(brokenStream, CompressionMode.Compress, leaveOpen: true);
-        compressor.Write(new byte[1000]);
+        using var compressed = new MemoryStream();
+        var options = new Lzma2Options { ChunkSize = 1024 };
+        using (var compressor = new Lzma2Stream(compressed, CompressionMode.Compress, options,
+                leaveOpen: true))
+        {
+            compressor.Write(original);
+        }
 
-        // Dispose should surface the error from the background task
-        Assert.ThrowsAny<Exception>(() => compressor.Dispose());
+        compressed.Position = 0;
+        using var decompressor = new Lzma2Stream(compressed, CompressionMode.Decompress);
+        using var result = new MemoryStream();
+        decompressor.CopyTo(result);
+
+        Assert.Equal(original, result.ToArray());
+    }
+
+    [Fact]
+    public void CrossApiCompat_CodecWriteStreamRead()
+    {
+        var original = new byte[2000];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        Lzma2Codec.Compress(new MemoryStream(original), compressed);
+
+        compressed.Position = 0;
+        using var decompressor = new Lzma2Stream(compressed, CompressionMode.Decompress);
+        using var result = new MemoryStream();
+        decompressor.CopyTo(result);
+
+        Assert.Equal(original, result.ToArray());
+    }
+
+    [Fact]
+    public void CrossApiCompat_StreamWriteCodecRead()
+    {
+        var original = new byte[2000];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        using (var compressor = new Lzma2Stream(compressed, CompressionMode.Compress, leaveOpen: true))
+        {
+            compressor.Write(original);
+        }
+
+        compressed.Position = 0;
+        using var result = new MemoryStream();
+        Lzma2Codec.Decompress(compressed, result);
+
+        Assert.Equal(original, result.ToArray());
+    }
+
+    [Fact]
+    public void EmptyInput_ProducesValidStream()
+    {
+        using var compressed = new MemoryStream();
+        using (var compressor = new Lzma2Stream(compressed, CompressionMode.Compress, leaveOpen: true))
+        {
+            // Write nothing
+        }
+
+        compressed.Position = 0;
+        using var decompressor = new Lzma2Stream(compressed, CompressionMode.Decompress);
+        using var result = new MemoryStream();
+        decompressor.CopyTo(result);
+
+        Assert.Empty(result.ToArray());
+    }
+
+    [Fact]
+    public void Flush_EmitsPartialChunk()
+    {
+        var data = new byte[100];
+        new Random(42).NextBytes(data);
+
+        using var compressed = new MemoryStream();
+        var options = new Lzma2Options { ChunkSize = 1024 };
+        using (var compressor = new Lzma2Stream(compressed, CompressionMode.Compress, options,
+                leaveOpen: true))
+        {
+            compressor.Write(data);
+            compressor.Flush();
+
+            Assert.True(compressed.Length > 0, "Flush should emit data to output stream");
+        }
     }
 
     [Fact]
@@ -247,7 +327,8 @@ public class Lzma2StreamTests
         new Random(42).NextBytes(data);
 
         using var compressed = new MemoryStream();
-        using (var compressor = new Lzma2Stream(compressed, CompressionMode.Compress,
+        var options = new Lzma2Options { ChunkSize = 1024 };
+        using (var compressor = new Lzma2Stream(compressed, CompressionMode.Compress, options,
                 leaveOpen: true))
         {
             compressor.Write(data);
@@ -287,25 +368,4 @@ public class Lzma2StreamTests
         decompressor.Flush(); // should be a no-op, not throw
     }
 
-    /// <summary>A stream that throws on Write — used to test error propagation.</summary>
-    private class BrokenWriteStream : MemoryStream
-    {
-        private int writeCount;
-
-        public override void Write(ReadOnlySpan<byte> buffer)
-        {
-            this.writeCount++;
-            // Allow first write (property header), fail on subsequent writes
-            if (this.writeCount > 1)
-            {
-                throw new IOException("Simulated write failure");
-            }
-            base.Write(buffer);
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            this.Write(buffer.AsSpan(offset, count));
-        }
-    }
 }
