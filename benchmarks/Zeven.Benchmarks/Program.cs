@@ -12,4 +12,10 @@ if (args.Length > 0 && args[0] == "--leak-test")
     return;
 }
 
+if (args.Length > 0 && args[0] == "--leak-test-large")
+{
+    LeakTest.Run(large: true);
+    return;
+}
+
 BenchmarkSwitcher.FromAssembly(typeof(CodecBenchmark).Assembly).Run(args);

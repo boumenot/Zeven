@@ -1,13 +1,22 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Diagnostics.Windows;
 using Zeven.Core;
 using Zeven.Core.Interop;
 
 [MemoryDiagnoser]
+[Config(typeof(NativeMemoryConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 [CategoriesColumn]
 public class CodecBenchmark
 {
+    private class NativeMemoryConfig : ManualConfig
+    {
+        public NativeMemoryConfig()
+        {
+            this.AddDiagnoser(new NativeMemoryProfiler());
+        }
+    }
     private static readonly (string Category, string FileName)[] TestFiles =
     [
         ("html",    "html"),
