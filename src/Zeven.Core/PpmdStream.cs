@@ -1,104 +1,59 @@
 using System.IO.Compression;
-using System.Runtime.InteropServices;
 using Zeven.Core.Interop;
 
 namespace Zeven.Core;
 
 /// <summary>
 /// Incremental PPMd compression/decompression stream matching the DeflateStream pattern.
-/// PPMd excels at compressing text and structured data.
+/// Uses the Zeven chunked wire format — no background threads.
 ///
-/// Compress mode: Write() pushes uncompressed data through a pipe. A background task
-/// runs Code() which pulls from the pipe.
+/// Compress mode: buffers writes into a chunk buffer, flushing full chunks to the
+/// inner stream via <see cref="PpmdFormat"/> framing.
 ///
-/// Decompress mode: Read() returns decompressed data using the decoder's native
-/// ISequentialInStream stream-mode — no background thread needed.
+/// Decompress mode: reads chunks from the inner stream, decompresses each one, and
+/// serves data from the decompressed buffer.
 /// </summary>
 public class PpmdStream : Stream
 {
     private readonly Stream innerStream;
     private readonly CompressionMode mode;
     private readonly bool leaveOpen;
-    private readonly int pipeBufferSize;
     private bool disposed;
 
     // Compress mode state
-    private Stream? pipeWriter;
-    private Task? backgroundTask;
-    private Exception? backgroundError;
+    private readonly PpmdOptions? options;
+    private readonly byte[]? propertyHeader;
+    private byte[]? chunkBuffer;
+    private int chunkBufferUsed;
+    private bool headerWritten;
 
-    // Decompress mode state — uses background thread + pipe (PPMd needs known output size)
-    private Stream? pipeReader;
-    private readonly List<object> liveObjects = new();
+    // Decompress mode state
+    private readonly byte[]? decompressPropertyHeader;
+    private MemoryStream? decompressedBuffer;
+    private bool eof;
 
     public PpmdStream(Stream stream, CompressionMode mode, bool leaveOpen = false)
         : this(stream, mode, null, leaveOpen) { }
 
     public PpmdStream(Stream stream, CompressionMode mode, PpmdOptions? options,
-        bool leaveOpen = false, int pipeBufferSize = StreamPipe.DefaultBufferSize)
+            bool leaveOpen = false)
     {
         this.innerStream = stream;
         this.mode = mode;
         this.leaveOpen = leaveOpen;
-        this.pipeBufferSize = pipeBufferSize;
 
         if (mode == CompressionMode.Compress)
         {
-            this.InitCompress(options ?? new PpmdOptions());
+            this.options = options ?? new PpmdOptions();
+            this.propertyHeader = Codec.CapturePropertyHeader(this.options);
+            this.chunkBuffer = new byte[this.options.ChunkSize];
+            this.chunkBufferUsed = 0;
+            this.headerWritten = false;
         }
         else
         {
-            this.InitDecompress();
+            this.decompressPropertyHeader = PpmdFormat.ReadHeader(stream);
         }
-    }
-
-    private void InitCompress(PpmdOptions options)
-    {
-        var pipe = new StreamPipe(this.pipeBufferSize);
-        this.pipeWriter = pipe.WriterStream;
-        var pipeReader = pipe.ReaderStream;
-
-        PpmdOptions capturedOptions = options;
-        Stream capturedInner = this.innerStream;
-
-        // PPMd needs known input size for the size prefix.
-        // Buffer all input via pipe, then compress in batch with size prefix.
-        this.backgroundTask = Task.Run(() =>
-        {
-            try
-            {
-                using var buffer = new MemoryStream();
-                pipeReader.CopyTo(buffer);
-                buffer.Position = 0;
-                Codec.Compress(capturedOptions, buffer, capturedInner);
-            }
-            finally
-            {
-                pipeReader.Dispose();
-            }
-        });
-    }
-
-    private void InitDecompress()
-    {
-        // PPMd decoder requires known output size — decompress in batch on background thread
-        var pipe = new StreamPipe(this.pipeBufferSize);
-        var pipeWriter = pipe.WriterStream;
-        this.pipeReader = pipe.ReaderStream;
-
-        Stream capturedInner = this.innerStream;
-
-        this.backgroundTask = Task.Run(() =>
-        {
-            try
-            {
-                PpmdCodec.Decompress(capturedInner, pipeWriter);
-            }
-            finally
-            {
-                pipeWriter.Dispose();
-            }
-        });
     }
 
     public override bool CanRead => this.mode == CompressionMode.Decompress && !this.disposed;
@@ -117,12 +72,30 @@ public class PpmdStream : Stream
         {
             throw new InvalidOperationException("Cannot read in compress mode");
         }
-        this.CheckBackgroundError();
-        if (this.pipeReader == null)
+
+        int totalRead = 0;
+        while (totalRead < count)
         {
-            return 0;
+            if (this.decompressedBuffer != null
+                && this.decompressedBuffer.Position < this.decompressedBuffer.Length)
+            {
+                int available = (int)(this.decompressedBuffer.Length
+                    - this.decompressedBuffer.Position);
+                int toRead = Math.Min(available, count - totalRead);
+                this.decompressedBuffer.Read(buffer, offset + totalRead, toRead);
+                totalRead += toRead;
+                continue;
+            }
+
+            if (this.eof)
+            {
+                break;
+            }
+
+            this.LoadNextChunk();
         }
-        return this.pipeReader.Read(buffer, offset, count);
+
+        return totalRead;
     }
 
     public override void Write(byte[] buffer, int offset, int count)
@@ -131,15 +104,28 @@ public class PpmdStream : Stream
         {
             throw new InvalidOperationException("Cannot write in decompress mode");
         }
-        this.CheckBackgroundError();
-        this.pipeWriter!.Write(buffer, offset, count);
+
+        while (count > 0)
+        {
+            int space = this.chunkBuffer!.Length - this.chunkBufferUsed;
+            int toCopy = Math.Min(space, count);
+            Buffer.BlockCopy(buffer, offset, this.chunkBuffer, this.chunkBufferUsed, toCopy);
+            this.chunkBufferUsed += toCopy;
+            offset += toCopy;
+            count -= toCopy;
+
+            if (this.chunkBufferUsed == this.chunkBuffer.Length)
+            {
+                this.FlushChunk();
+            }
+        }
     }
 
     public override void Flush()
     {
-        if (this.mode == CompressionMode.Compress && this.pipeWriter != null)
+        if (this.mode == CompressionMode.Compress)
         {
-            this.pipeWriter.Flush();
+            this.FlushChunk();
         }
     }
 
@@ -159,56 +145,70 @@ public class PpmdStream : Stream
         {
             if (this.mode == CompressionMode.Compress)
             {
-                this.pipeWriter?.Dispose();
-                this.pipeWriter = null;
-            }
-            else
-            {
-                this.pipeReader?.Dispose();
-                this.pipeReader = null;
+                this.FlushChunk();
+
+                if (!this.headerWritten)
+                {
+                    PpmdFormat.WriteHeader(this.innerStream, this.propertyHeader!);
+                    this.headerWritten = true;
+                }
+
+                PpmdFormat.WriteEndMarker(this.innerStream);
             }
 
-            try
-            {
-                this.backgroundTask?.Wait(TimeSpan.FromSeconds(30));
-            }
-            catch (AggregateException ae)
-            {
-                this.backgroundError = ae.InnerException ?? ae;
-            }
-            this.backgroundTask = null;
+            this.decompressedBuffer?.Dispose();
+            this.decompressedBuffer = null;
 
             if (!this.leaveOpen)
             {
-                try
-                {
-                    this.innerStream.Dispose();
-                }
-                catch (COMException)
-                {
-                }
+                this.innerStream.Dispose();
             }
-
-            this.CheckBackgroundError();
         }
 
         base.Dispose(disposing);
     }
 
-    private void CheckBackgroundError()
+    private void FlushChunk()
     {
-        if (this.backgroundError != null)
+        if (this.chunkBufferUsed == 0)
         {
-            var ex = this.backgroundError;
-            this.backgroundError = null;
-            throw ex;
+            return;
         }
 
-        if (this.backgroundTask is { IsFaulted: true } task)
+        if (!this.headerWritten)
         {
-            var ex = task.Exception?.InnerException ?? task.Exception!;
-            this.backgroundTask = null;
-            throw ex;
+            PpmdFormat.WriteHeader(this.innerStream, this.propertyHeader!);
+            this.headerWritten = true;
         }
+
+        using var inputStream = new MemoryStream(
+            this.chunkBuffer!, 0, this.chunkBufferUsed, writable: false);
+        using var compressed = new MemoryStream();
+        Codec.CompressBlock(this.options!, this.propertyHeader!, inputStream, compressed);
+
+        PpmdFormat.WriteChunk(this.innerStream, this.chunkBufferUsed,
+                compressed.GetBuffer().AsSpan(0, (int)compressed.Length));
+
+        this.chunkBufferUsed = 0;
+    }
+
+    private void LoadNextChunk()
+    {
+        var chunk = PpmdFormat.ReadChunk(this.innerStream);
+        if (chunk == null)
+        {
+            this.eof = true;
+            return;
+        }
+
+        this.decompressedBuffer?.Dispose();
+
+        using var compressedStream = new MemoryStream(chunk.Value.CompressedData);
+        var decompressed = new MemoryStream();
+        Codec.DecompressBlock(this.decompressPropertyHeader!, CodecId.Ppmd,
+                compressedStream, decompressed, chunk.Value.UncompressedSize);
+
+        decompressed.Position = 0;
+        this.decompressedBuffer = decompressed;
     }
 }

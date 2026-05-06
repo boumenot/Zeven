@@ -192,6 +192,100 @@ public class PpmdStreamTests
             Assert.False(decompressor.CanWrite);
         }
     }
+
+    [Fact]
+    public void MultipleChunks_RoundTrip()
+    {
+        var original = new byte[5000];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        var options = new PpmdOptions { ChunkSize = 1024 };
+        using (var compressor = new PpmdStream(compressed, CompressionMode.Compress, options,
+                leaveOpen: true))
+        {
+            compressor.Write(original);
+        }
+
+        compressed.Position = 0;
+        using var decompressor = new PpmdStream(compressed, CompressionMode.Decompress);
+        using var result = new MemoryStream();
+        decompressor.CopyTo(result);
+
+        Assert.Equal(original, result.ToArray());
+    }
+
+    [Fact]
+    public void CrossApiCompat_CodecWriteStreamRead()
+    {
+        var original = new byte[2000];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        PpmdCodec.Compress(new MemoryStream(original), compressed);
+
+        compressed.Position = 0;
+        using var decompressor = new PpmdStream(compressed, CompressionMode.Decompress);
+        using var result = new MemoryStream();
+        decompressor.CopyTo(result);
+
+        Assert.Equal(original, result.ToArray());
+    }
+
+    [Fact]
+    public void CrossApiCompat_StreamWriteCodecRead()
+    {
+        var original = new byte[2000];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        using (var compressor = new PpmdStream(compressed, CompressionMode.Compress, leaveOpen: true))
+        {
+            compressor.Write(original);
+        }
+
+        compressed.Position = 0;
+        using var result = new MemoryStream();
+        PpmdCodec.Decompress(compressed, result);
+
+        Assert.Equal(original, result.ToArray());
+    }
+
+    [Fact]
+    public void EmptyInput_ProducesValidStream()
+    {
+        using var compressed = new MemoryStream();
+        using (var compressor = new PpmdStream(compressed, CompressionMode.Compress, leaveOpen: true))
+        {
+            // Write nothing
+        }
+
+        compressed.Position = 0;
+        using var decompressor = new PpmdStream(compressed, CompressionMode.Decompress);
+        using var result = new MemoryStream();
+        decompressor.CopyTo(result);
+
+        Assert.Empty(result.ToArray());
+    }
+
+    [Fact]
+    public void Flush_EmitsPartialChunk()
+    {
+        var data = new byte[100];
+        new Random(42).NextBytes(data);
+
+        using var compressed = new MemoryStream();
+        var options = new PpmdOptions { ChunkSize = 1024 };
+        using (var compressor = new PpmdStream(compressed, CompressionMode.Compress, options,
+                leaveOpen: true))
+        {
+            compressor.Write(data);
+            compressor.Flush();
+
+            // After Flush, some compressed data should be in the output
+            Assert.True(compressed.Length > 0, "Flush should emit data to output stream");
+        }
+    }
 }
 
 public class PpmdFormatTests
