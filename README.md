@@ -81,6 +81,47 @@ lib.CreateArchive(FormatClsid.SevenZip, output, files);
 var extracted = handle.ExtractAll(); // Dictionary<uint, byte[]>
 ```
 
+### Creating a .tar.zst archive
+
+Tar + Zstd is a two-step process: create the tar container, then compress with Zstd.
+
+```csharp
+using Zeven.Core;
+using Zeven.Core.Interop;
+
+var lib = ZevenLibrary.Load(@"path\to\7z.dll");
+
+// Step 1: Create a .tar archive in memory
+var files = new Dictionary<string, string>
+{
+    ["src/main.cs"] = @"C:\project\src\main.cs",
+    ["README.md"]   = @"C:\project\README.md",
+};
+
+using var tarStream = new MemoryStream();
+lib.CreateArchive(FormatClsid.Tar, tarStream, files);
+
+// Step 2: Compress with Zstd
+tarStream.Position = 0;
+using var output = File.Create(@"C:\project\backup.tar.zst");
+ZstdCodec.Compress(tarStream, output, new ZstdOptions { Level = 3 });
+```
+
+To decompress and extract:
+
+```csharp
+// Step 1: Decompress Zstd
+using var zstInput = File.OpenRead(@"C:\project\backup.tar.zst");
+using var tarStream = new MemoryStream();
+ZstdCodec.Decompress(zstInput, tarStream);
+
+// Step 2: Extract tar
+tarStream.Position = 0;
+using var handle = lib.CreateInArchive(FormatClsid.Tar);
+handle.Open(tarStream);
+handle.ExtractTo(@"C:\output");
+```
+
 ## 7-Zip Native DLLs
 
 7-Zip ships several DLLs built from different source bundles. They all export the same COM factory function (`CreateObject`) but differ in which archive formats and codecs are compiled in.
