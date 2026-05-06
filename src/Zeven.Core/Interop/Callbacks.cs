@@ -303,3 +303,224 @@ public partial class UpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPass
         return 0;
     }
 }
+
+/// <summary>
+/// Archive creation callback that streams files from disk instead of memory.
+/// </summary>
+[GeneratedComClass]
+public partial class FileUpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPassword2
+{
+    private readonly List<(string ArchiveName, string FilePath)> items;
+    private readonly StrategyBasedComWrappers comWrappers;
+    private readonly string? password;
+    private readonly List<object> liveObjects = new();
+    private FileStream? currentFileStream;
+
+    public FileUpdateCallback(Dictionary<string, string> files, StrategyBasedComWrappers cw,
+            string? password = null)
+    {
+        this.items = files.Select(kv => (kv.Key, kv.Value)).ToList();
+        this.comWrappers = cw;
+        this.password = password;
+    }
+
+    // IProgress
+    public int SetTotal(ulong total) => 0;
+    public int SetCompleted(nint completeValue) => 0;
+
+    public int GetUpdateItemInfo(uint index, out int newData, out int newProps, out uint indexInArchive)
+    {
+        newData = 1;
+        newProps = 1;
+        indexInArchive = unchecked((uint)-1); // no existing item
+        return 0;
+    }
+
+    public int GetProperty(uint index, uint propID, ref PropVariant value)
+    {
+        value = default;
+        var (archiveName, filePath) = this.items[(int)index];
+        var fileInfo = new FileInfo(filePath);
+
+        switch (propID)
+        {
+            case PropId.kpidPath:
+                value.VarType = PropVariant.VT_BSTR;
+                value.PointerValue = Marshal.StringToBSTR(archiveName);
+                break;
+            case PropId.kpidIsDir:
+                value.VarType = PropVariant.VT_BOOL;
+                value.BoolValue = 0; // false
+                break;
+            case PropId.kpidSize:
+                value.VarType = PropVariant.VT_UI8;
+                value.ULongValue = (ulong)fileInfo.Length;
+                break;
+            case PropId.kpidAttrib:
+                value.VarType = PropVariant.VT_UI4;
+                value.UIntValue = (uint)fileInfo.Attributes;
+                break;
+            case PropId.kpidCTime:
+                value.VarType = PropVariant.VT_FILETIME;
+                value.LongValue = fileInfo.CreationTimeUtc.ToFileTimeUtc();
+                break;
+            case PropId.kpidATime:
+                value.VarType = PropVariant.VT_FILETIME;
+                value.LongValue = fileInfo.LastAccessTimeUtc.ToFileTimeUtc();
+                break;
+            case PropId.kpidMTime:
+                value.VarType = PropVariant.VT_FILETIME;
+                value.LongValue = fileInfo.LastWriteTimeUtc.ToFileTimeUtc();
+                break;
+            case 21: // kpidIsAnti
+                value.VarType = PropVariant.VT_BOOL;
+                value.BoolValue = 0;
+                break;
+        }
+        return 0;
+    }
+
+    public int GetStream(uint index, out nint inStream)
+    {
+        var filePath = this.items[(int)index].FilePath;
+        var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+        this.currentFileStream = fs;
+        var wrapper = new InStreamWrapper(fs);
+        this.liveObjects.Add(wrapper);
+
+        nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
+        Guid iid = Iid.ISequentialInStream;
+        Marshal.QueryInterface(ccw, ref iid, out inStream);
+        Marshal.Release(ccw);
+        return 0;
+    }
+
+    public int SetOperationResult(int operationResult)
+    {
+        if (this.currentFileStream != null)
+        {
+            this.currentFileStream.Dispose();
+            this.currentFileStream = null;
+        }
+        return 0;
+    }
+
+    public int CryptoGetTextPassword2(out int passwordIsDefined, out nint password)
+    {
+        if (this.password != null)
+        {
+            passwordIsDefined = 1;
+            password = Marshal.StringToBSTR(this.password);
+        }
+        else
+        {
+            passwordIsDefined = 0;
+            password = nint.Zero;
+        }
+        return 0;
+    }
+}
+
+/// <summary>
+/// Extraction callback that writes each item directly to files on disk.
+/// </summary>
+[GeneratedComClass]
+public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICryptoGetTextPassword
+{
+    private readonly IInArchive archive;
+    private readonly StrategyBasedComWrappers comWrappers;
+    private readonly string baseDirectory;
+    private readonly string? password;
+    private FileStream? currentFileStream;
+    private readonly List<object> liveObjects = new();
+
+    public DirectoryExtractCallback(IInArchive archive, StrategyBasedComWrappers cw,
+            string baseDirectory, string? password = null)
+    {
+        this.archive = archive;
+        this.comWrappers = cw;
+        this.baseDirectory = baseDirectory;
+        this.password = password;
+    }
+
+    // IProgress
+    public int SetTotal(ulong total) => 0;
+    public int SetCompleted(nint completeValue) => 0;
+
+    // IArchiveExtractCallback
+    public int GetStream(uint index, out nint outStream, int askExtractMode)
+    {
+        this.currentFileStream = null;
+        outStream = nint.Zero;
+
+        // Only create output stream for actual extraction (not test/skip)
+        if (askExtractMode != 0) // 0 = kExtract
+        {
+            return 0;
+        }
+
+        // Get the path property
+        PropVariant pvPath = default;
+        this.archive.GetProperty(index, PropId.kpidPath, ref pvPath);
+        string? itemPath = pvPath.GetBstr();
+        NativeMethods.PropVariantClear(ref pvPath);
+
+        if (string.IsNullOrEmpty(itemPath))
+        {
+            return 0;
+        }
+
+        // Check if it's a directory
+        PropVariant pvDir = default;
+        this.archive.GetProperty(index, PropId.kpidIsDir, ref pvDir);
+        bool isDir = pvDir.GetBool();
+
+        if (isDir)
+        {
+            string dirPath = Path.Combine(this.baseDirectory, itemPath);
+            Directory.CreateDirectory(dirPath);
+            return 0;
+        }
+
+        // It's a file — create parent directories and open a FileStream
+        string fullPath = Path.Combine(this.baseDirectory, itemPath);
+        string? parentDir = Path.GetDirectoryName(fullPath);
+        if (parentDir != null)
+        {
+            Directory.CreateDirectory(parentDir);
+        }
+
+        this.currentFileStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write);
+        var wrapper = new OutStreamWrapper(this.currentFileStream);
+        this.liveObjects.Add(wrapper);
+
+        nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
+        Guid iid = Iid.ISequentialOutStream;
+        Marshal.QueryInterface(ccw, ref iid, out outStream);
+        Marshal.Release(ccw);
+        return 0;
+    }
+
+    public int PrepareOperation(int askExtractMode) => 0;
+
+    public int SetOperationResult(int opRes)
+    {
+        if (this.currentFileStream != null)
+        {
+            this.currentFileStream.Dispose();
+            this.currentFileStream = null;
+        }
+        return 0;
+    }
+
+    public int CryptoGetTextPassword(out nint password)
+    {
+        if (this.password == null)
+        {
+            password = nint.Zero;
+            return unchecked((int)0x80004004); // E_ABORT
+        }
+        password = Marshal.StringToBSTR(this.password);
+        return 0;
+    }
+}

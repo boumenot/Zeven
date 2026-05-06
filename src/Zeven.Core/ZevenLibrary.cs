@@ -168,6 +168,39 @@ public sealed class ZevenLibrary : IDisposable
         Marshal.ThrowExceptionForHR(hr);
     }
 
+    /// <summary>Create an archive from files on disk. Files are streamed — not loaded into memory.</summary>
+    public void CreateArchive(Guid classId, Stream outputStream,
+            Dictionary<string, string> files, string? password = null)
+    {
+        Guid iid = Iid.IOutArchive;
+        int hr = this.createObject(in classId, in iid, out nint ptr);
+        Marshal.ThrowExceptionForHR(hr);
+
+        var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
+
+        var outWrapper = new OutStreamWrapper(outputStream);
+        var updateCallback = new FileUpdateCallback(files, this.comWrappers, password);
+
+        nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
+        Guid iidOutStream = Iid.IOutStream;
+        Marshal.QueryInterface(outCcw, ref iidOutStream, out nint outPtr);
+
+        nint cbCcw = this.comWrappers.GetOrCreateComInterfaceForObject(updateCallback, CreateComInterfaceFlags.None);
+        Guid iidUpdateCb = Iid.IArchiveUpdateCallback;
+        Marshal.QueryInterface(cbCcw, ref iidUpdateCb, out nint cbPtr);
+
+        hr = outArchive.UpdateItems(outPtr, (uint)files.Count, cbPtr);
+
+        if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
+        if (cbPtr != nint.Zero) { Marshal.Release(cbPtr); }
+        Marshal.Release(outCcw);
+        Marshal.Release(cbCcw);
+        GC.KeepAlive(outWrapper);
+        GC.KeepAlive(updateCallback);
+
+        Marshal.ThrowExceptionForHR(hr);
+    }
+
     private static List<ArchiveFormat> LoadFormats(
         GetNumberOfFormatsFunc getNumberOfFormats,
         GetHandlerProperty2Func getHandlerProperty2)
@@ -318,6 +351,27 @@ public sealed class ArchiveHandle : IDisposable
         var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
         // numItems = 0xFFFFFFFF means "all", testMode = 1
         this.CallExtract(null, 1, callback);
+    }
+
+    /// <summary>Extract all files to the specified directory. Creates subdirectories as needed.</summary>
+    public void ExtractTo(string directory)
+    {
+        Directory.CreateDirectory(directory);
+
+        var callback = new DirectoryExtractCallback(
+                this.Archive, this.ComWrappers, directory, this.password);
+
+        var cw = this.ComWrappers;
+        nint callbackCcw = cw.GetOrCreateComInterfaceForObject(callback, CreateComInterfaceFlags.None);
+        Guid iidExtractCb = Iid.IArchiveExtractCallback;
+        Marshal.QueryInterface(callbackCcw, ref iidExtractCb, out nint callbackPtr);
+
+        int hr = this.Archive.Extract(nint.Zero, 0xFFFFFFFF, 0, callbackPtr);
+
+        if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
+        Marshal.Release(callbackCcw);
+        GC.KeepAlive(callback);
+        Marshal.ThrowExceptionForHR(hr);
     }
 
     private void CallExtract(uint[]? indices, int testMode, ExtractCallback callback)

@@ -95,4 +95,79 @@ public class ArchiveCreateTests
         var extracted = handle.ExtractAll();
         Assert.Equal(largeData, extracted["large.bin"]);
     }
+
+    [Fact]
+    public void CreateArchive_FromDiskFiles_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var tempDir = Path.Combine(Path.GetTempPath(), "zeven_test_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            // Create source files
+            File.WriteAllText(Path.Combine(tempDir, "hello.txt"), "Hello from disk!");
+            File.WriteAllBytes(Path.Combine(tempDir, "data.bin"), new byte[1000]);
+
+            var files = new Dictionary<string, string>
+            {
+                ["hello.txt"] = Path.Combine(tempDir, "hello.txt"),
+                ["data.bin"] = Path.Combine(tempDir, "data.bin"),
+            };
+
+            // Create archive
+            using var archiveStream = new MemoryStream();
+            lib.CreateArchive(FormatClsid.SevenZip, archiveStream, files);
+
+            // Verify by extracting with existing API
+            archiveStream.Position = 0;
+            using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
+            handle.Open(archiveStream);
+            var extracted = handle.ExtractAll();
+
+            Assert.Equal(2, extracted.Count);
+            Assert.Equal("Hello from disk!", System.Text.Encoding.UTF8.GetString(extracted["hello.txt"]));
+            Assert.Equal(1000, extracted["data.bin"].Length);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void ExtractTo_WritesFilesToDisk()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var tempDir = Path.Combine(Path.GetTempPath(), "zeven_test_" + Guid.NewGuid().ToString("N")[..8]);
+
+        try
+        {
+            // Create an archive with known content
+            var files = new Dictionary<string, byte[]>
+            {
+                ["doc.txt"] = System.Text.Encoding.UTF8.GetBytes("Test content"),
+                ["binary.dat"] = new byte[500],
+            };
+            using var archiveStream = new MemoryStream();
+            lib.CreateArchive(FormatClsid.SevenZip, archiveStream, files);
+
+            // Extract to disk
+            archiveStream.Position = 0;
+            using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
+            handle.Open(archiveStream);
+
+            var extractDir = Path.Combine(tempDir, "extracted");
+            handle.ExtractTo(extractDir);
+
+            Assert.True(File.Exists(Path.Combine(extractDir, "doc.txt")));
+            Assert.Equal("Test content", File.ReadAllText(Path.Combine(extractDir, "doc.txt")));
+            Assert.True(File.Exists(Path.Combine(extractDir, "binary.dat")));
+            Assert.Equal(500, new FileInfo(Path.Combine(extractDir, "binary.dat")).Length);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) { Directory.Delete(tempDir, true); }
+        }
+    }
 }

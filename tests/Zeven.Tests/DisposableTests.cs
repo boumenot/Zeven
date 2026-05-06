@@ -16,7 +16,7 @@ public class DisposableTests
         byte[] archiveBytes;
         using (var ms = new MemoryStream())
         {
-            lib.CreateArchive(format.ClassId, ms, new() { ["a.txt"] = "A"u8.ToArray() });
+            lib.CreateArchive(format.ClassId, ms, new Dictionary<string, byte[]> { ["a.txt"] = "A"u8.ToArray() });
             archiveBytes = ms.ToArray();
         }
 
@@ -40,12 +40,12 @@ public class DisposableTests
         byte[] archive1, archive2;
         using (var ms = new MemoryStream())
         {
-            lib.CreateArchive(format.ClassId, ms, new() { ["one.txt"] = "1"u8.ToArray() });
+            lib.CreateArchive(format.ClassId, ms, new Dictionary<string, byte[]> { ["one.txt"] = "1"u8.ToArray() });
             archive1 = ms.ToArray();
         }
         using (var ms = new MemoryStream())
         {
-            lib.CreateArchive(format.ClassId, ms, new() { ["two.txt"] = "2"u8.ToArray() });
+            lib.CreateArchive(format.ClassId, ms, new Dictionary<string, byte[]> { ["two.txt"] = "2"u8.ToArray() });
             archive2 = ms.ToArray();
         }
 
