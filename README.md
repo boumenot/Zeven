@@ -25,7 +25,7 @@ ZstdCodec.Decompress(compressed, decompressed);
 using System.IO.Compression;
 using Zeven.Core;
 
-// Streaming compress (DeflateStream pattern)
+// Streaming compress
 using (var compressor = new ZstdStream(outputFile, CompressionMode.Compress))
 {
     compressor.Write(data);
