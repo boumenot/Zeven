@@ -6,14 +6,23 @@ namespace Zeven.Core.Interop;
 /// </summary>
 public static class CodecId
 {
-    public const ulong Copy     = 0x00;
-    public const ulong Delta    = 0x03;
-    public const ulong Lzma2   = 0x21;
-    public const ulong Lzma    = 0x030101;
-    public const ulong Ppmd    = 0x030401;
-    public const ulong Deflate = 0x040108;
-    public const ulong BZip2   = 0x040202;
-    public const ulong Aes256  = 0x06F10701;
+    // ── Upstream 7-Zip codecs ──
+    public const ulong Copy      = 0x00;
+    public const ulong Delta     = 0x03;
+    public const ulong Lzma2     = 0x21;
+    public const ulong Lzma      = 0x030101;
+    public const ulong Ppmd      = 0x030401;
+    public const ulong Deflate   = 0x040108;
+    public const ulong Deflate64 = 0x040109;
+    public const ulong BZip2     = 0x040202;
+    public const ulong Aes256    = 0x06F10701;
+
+    // ── 7-Zip-zstd additional codecs ──
+    public const ulong Zstd      = 0x04F71101;
+    public const ulong Brotli    = 0x04F71102;
+    public const ulong Lz4       = 0x04F71104;
+    public const ulong Lz5       = 0x04F71105;
+    public const ulong Lizard    = 0x04F71106;
 }
 
 /// <summary>

@@ -117,20 +117,26 @@ This distinction matters because a name like "PPMd" or "LZMA" can refer to *eith
 
 The **codecs** available inside `.7z` (and sometimes `.zip`) are:
 
-| Codec | Encode | Decode | Notes |
-|---|---|---|---|
-| LZMA2 | ✅ | ✅ | Default for `.7z` |
-| LZMA | ✅ | ✅ | Legacy default |
-| PPMd | ✅ | ✅ | Good for text |
-| BZip2 | ✅ | ✅ | |
-| Deflate | ✅ | ✅ | Used by `.zip` |
-| Deflate64 | ✅ | ✅ | |
-| Copy | ✅ | ✅ | No compression (store) |
-| Delta | ✅ | ✅ | Filter |
-| BCJ / BCJ2 | ✅ | ✅ | x86 executable filter |
-| ARM / ARM64 | ✅ | ✅ | ARM executable filter |
-| RISCV | ✅ | ✅ | RISC-V executable filter |
-| 7zAES | ✅ | ✅ | AES-256 encryption |
+| Codec | Encode | Decode | Zeven API | Notes |
+|---|---|---|---|---|
+| LZMA2 | ✅ | ✅ | `Lzma2Codec` / `Lzma2Stream` | Default for `.7z` |
+| LZMA | ✅ | ✅ | — | Legacy default |
+| PPMd | ✅ | ✅ | `PpmdCodec` / `PpmdStream` | Good for text; chunked format |
+| BZip2 | ✅ | ✅ | — | |
+| Deflate | ✅ | ✅ | — | Used by `.zip` |
+| Deflate64 | ✅ | ✅ | — | |
+| Copy | ✅ | ✅ | — | No compression (store) |
+| Delta | ✅ | ✅ | — | Filter |
+| BCJ / BCJ2 | ✅ | ✅ | — | x86 executable filter |
+| ARM / ARM64 | ✅ | ✅ | — | ARM executable filter |
+| RISCV | ✅ | ✅ | — | RISC-V executable filter |
+| 7zAES | ✅ | ✅ | — | AES-256 encryption |
+| Zstandard | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71101`) |
+| Brotli | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71102`) |
+| LZ4 | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71104`) |
+| LZ5 | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71105`) |
+| Lizard | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71106`) |
+| Fast LZMA2 | ✅ | ✅ | — | Via 7-Zip-zstd (same ID as LZMA2) |
 
 The full list of read/write support is reported at runtime via `GetHandlerProperty2(kUpdate)` — see `ZevenLibrary.Formats`.
 
