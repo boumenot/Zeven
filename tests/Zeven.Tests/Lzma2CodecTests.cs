@@ -203,4 +203,62 @@ public class Lzma2CodecTests
 
         Assert.Equal(original, decompressed.ToArray());
     }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    public void Lzma2Options_NumThreads_ValidValues(int numThreads)
+    {
+        var original = new byte[200];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        Lzma2Codec.Compress(new MemoryStream(original), compressed,
+            new Lzma2Options { NumThreads = numThreads });
+
+        compressed.Position = 0;
+        using var decompressed = new MemoryStream();
+        Lzma2Codec.Decompress(compressed, decompressed);
+
+        Assert.Equal(original, decompressed.ToArray());
+    }
+
+    [Theory]
+    [InlineData(1 << 16)]   // 64KB
+    [InlineData(1 << 20)]   // 1MB
+    public void Lzma2Options_BlockSize_ValidValues(long blockSize)
+    {
+        var original = new byte[200];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        Lzma2Codec.Compress(new MemoryStream(original), compressed,
+            new Lzma2Options { BlockSize = blockSize });
+
+        compressed.Position = 0;
+        using var decompressed = new MemoryStream();
+        Lzma2Codec.Decompress(compressed, decompressed);
+
+        Assert.Equal(original, decompressed.ToArray());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Lzma2Options_Algorithm_ValidValues(int algorithm)
+    {
+        var original = new byte[200];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        Lzma2Codec.Compress(new MemoryStream(original), compressed,
+            new Lzma2Options { Algorithm = algorithm });
+
+        compressed.Position = 0;
+        using var decompressed = new MemoryStream();
+        Lzma2Codec.Decompress(compressed, decompressed);
+
+        Assert.Equal(original, decompressed.ToArray());
+    }
 }
