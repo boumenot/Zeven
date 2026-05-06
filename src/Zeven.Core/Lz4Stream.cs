@@ -143,25 +143,30 @@ public class Lz4Stream : Stream
 
         if (disposing)
         {
-            if (this.mode == CompressionMode.Compress)
+            try
             {
-                this.FlushChunk();
-
-                if (!this.headerWritten)
+                if (this.mode == CompressionMode.Compress)
                 {
-                    ZevenFormat.WriteHeader(this.innerStream, CodecId.Lz4, this.propertyHeader!);
-                    this.headerWritten = true;
+                    this.FlushChunk();
+
+                    if (!this.headerWritten)
+                    {
+                        ZevenFormat.WriteHeader(this.innerStream, CodecId.Lz4, this.propertyHeader!);
+                        this.headerWritten = true;
+                    }
+
+                    ZevenFormat.WriteEndMarker(this.innerStream);
                 }
-
-                ZevenFormat.WriteEndMarker(this.innerStream);
             }
-
-            this.decompressedBuffer?.Dispose();
-            this.decompressedBuffer = null;
-
-            if (!this.leaveOpen)
+            finally
             {
-                this.innerStream.Dispose();
+                this.decompressedBuffer?.Dispose();
+                this.decompressedBuffer = null;
+
+                if (!this.leaveOpen)
+                {
+                    this.innerStream.Dispose();
+                }
             }
         }
 
