@@ -68,6 +68,21 @@ internal static class ZevenFormat
         return new ZevenHeader(codecId, propertyHeader);
     }
 
+    /// <summary>
+    /// Reads the header and validates that the codec ID matches the expected value.
+    /// Throws <see cref="InvalidDataException"/> on mismatch.
+    /// </summary>
+    public static byte[] ReadHeaderAndValidateCodec(Stream input, ulong expectedCodecId)
+    {
+        var header = ReadHeader(input);
+        if (header.CodecId != expectedCodecId)
+        {
+            throw new InvalidDataException(
+                $"Codec mismatch: expected 0x{expectedCodecId:X}, got 0x{header.CodecId:X}.");
+        }
+        return header.PropertyHeader;
+    }
+
     /// <summary>Writes a data chunk: sizes + compressed data + CRC32.</summary>
     public static void WriteChunk(Stream output, long uncompressedSize,
             ReadOnlySpan<byte> compressedData)
@@ -93,8 +108,15 @@ internal static class ZevenFormat
         ReadExactly(input, header);
 
         long uncompressedSize = BinaryPrimitives.ReadInt64LittleEndian(header);
+        long compressedSize = BinaryPrimitives.ReadInt64LittleEndian(header[8..]);
+
         if (uncompressedSize == 0)
         {
+            if (compressedSize != 0)
+            {
+                throw new InvalidDataException(
+                    "Invalid end marker: uncompressed size is 0 but compressed size is non-zero.");
+            }
             return null;
         }
 
@@ -103,7 +125,6 @@ internal static class ZevenFormat
             throw new InvalidDataException("Uncompressed size is negative.");
         }
 
-        long compressedSize = BinaryPrimitives.ReadInt64LittleEndian(header[8..]);
         if (compressedSize < 0)
         {
             throw new InvalidDataException("Compressed size is negative.");

@@ -32,7 +32,7 @@ public static class Lzma2Codec
     /// <summary>Decompress an LZMA2 stream in chunked format.</summary>
     public static void Decompress(Stream input, Stream output)
     {
-        byte[] propertyHeader = ZevenFormat.ReadHeader(input).PropertyHeader;
+        byte[] propertyHeader = ZevenFormat.ReadHeaderAndValidateCodec(input, CodecId.Lzma2);
 
         while (true)
         {

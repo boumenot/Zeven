@@ -52,7 +52,7 @@ public class PpmdStream : Stream
         }
         else
         {
-            this.decompressPropertyHeader = ZevenFormat.ReadHeader(stream).PropertyHeader;
+            this.decompressPropertyHeader = ZevenFormat.ReadHeaderAndValidateCodec(stream, CodecId.Ppmd);
         }
     }
 

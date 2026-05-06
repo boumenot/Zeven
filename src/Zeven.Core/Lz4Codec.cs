@@ -33,7 +33,7 @@ public static class Lz4Codec
     /// <summary>Decompress an LZ4 stream in chunked format.</summary>
     public static void Decompress(Stream input, Stream output)
     {
-        byte[] propertyHeader = ZevenFormat.ReadHeader(input).PropertyHeader;
+        byte[] propertyHeader = ZevenFormat.ReadHeaderAndValidateCodec(input, CodecId.Lz4);
 
         while (true)
         {

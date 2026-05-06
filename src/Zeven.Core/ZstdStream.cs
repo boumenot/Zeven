@@ -52,7 +52,7 @@ public class ZstdStream : Stream
         }
         else
         {
-            this.decompressPropertyHeader = ZevenFormat.ReadHeader(stream).PropertyHeader;
+            this.decompressPropertyHeader = ZevenFormat.ReadHeaderAndValidateCodec(stream, CodecId.Zstd);
         }
     }
 

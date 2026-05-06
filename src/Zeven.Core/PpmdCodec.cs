@@ -33,7 +33,7 @@ public static class PpmdCodec
     /// <summary>Decompress a PPMd stream in chunked format.</summary>
     public static void Decompress(Stream input, Stream output)
     {
-        byte[] propertyHeader = ZevenFormat.ReadHeader(input).PropertyHeader;
+        byte[] propertyHeader = ZevenFormat.ReadHeaderAndValidateCodec(input, CodecId.Ppmd);
 
         while (true)
         {

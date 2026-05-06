@@ -26,28 +26,33 @@ internal static class Codec
         Guid iidSeqOut = Iid.ISequentialOutStream;
         Marshal.QueryInterface(outCcw, ref iidSeqOut, out nint outPtr);
 
-        int hr;
-        unsafe
+        try
         {
-            if (outSize >= 0)
+            int hr;
+            unsafe
             {
-                ulong size = (ulong)outSize;
-                hr = coder.Code(inPtr, outPtr, nint.Zero, (nint)(&size), nint.Zero);
+                if (outSize >= 0)
+                {
+                    ulong size = (ulong)outSize;
+                    hr = coder.Code(inPtr, outPtr, nint.Zero, (nint)(&size), nint.Zero);
+                }
+                else
+                {
+                    hr = coder.Code(inPtr, outPtr, nint.Zero, nint.Zero, nint.Zero);
+                }
             }
-            else
-            {
-                hr = coder.Code(inPtr, outPtr, nint.Zero, nint.Zero, nint.Zero);
-            }
+
+            Marshal.ThrowExceptionForHR(hr);
         }
-
-        if (inPtr != nint.Zero) { Marshal.Release(inPtr); }
-        if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
-        Marshal.Release(inCcw);
-        Marshal.Release(outCcw);
-        GC.KeepAlive(inWrapper);
-        GC.KeepAlive(outWrapper);
-
-        Marshal.ThrowExceptionForHR(hr);
+        finally
+        {
+            if (inPtr != nint.Zero) { Marshal.Release(inPtr); }
+            if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
+            Marshal.Release(inCcw);
+            Marshal.Release(outCcw);
+            GC.KeepAlive(inWrapper);
+            GC.KeepAlive(outWrapper);
+        }
     }
 
     private static void ApplyProperties(ICodecOptions options, ICompressSetCoderProperties setProps)
