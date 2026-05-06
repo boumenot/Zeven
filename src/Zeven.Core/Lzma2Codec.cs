@@ -8,6 +8,7 @@ namespace Zeven.Core;
 /// </summary>
 public static class Lzma2Codec
 {
+    internal const int Lzma2PropertyHeaderSize = 1;
     /// <summary>Compress a stream using LZMA2.</summary>
     public static void Compress(Stream input, Stream output, Lzma2Options? options = null)
     {
@@ -17,6 +18,6 @@ public static class Lzma2Codec
     /// <summary>Decompress an LZMA2 stream.</summary>
     public static void Decompress(Stream input, Stream output)
     {
-        Codec.Decompress(CodecId.Lzma2, input, output);
+        Codec.Decompress(CodecId.Lzma2, Lzma2PropertyHeaderSize, input, output);
     }
 }

@@ -101,9 +101,8 @@ internal static class Codec
         }
     }
 
-    public static void Decompress(ulong codecId, Stream input, Stream output)
+    public static void Decompress(ulong codecId, int propertyHeaderSize, Stream input, Stream output)
     {
-        int propertyHeaderSize = GetPropertyHeaderSize(codecId);
         // Read 8-byte size prefix
         Span<byte> sizeBytes = stackalloc byte[8];
         if (input.ReadAtLeast(sizeBytes, 8, throwOnEndOfStream: false) < 8)
@@ -172,11 +171,10 @@ internal static class Codec
     /// Initialize a decoder in stream-mode for incremental reading.
     /// Returns the decoder's ISequentialInStream COM pointer for direct Read() calls.
     /// </summary>
-    public static nint InitStreamDecoder(ulong codecId,
+    public static nint InitStreamDecoder(ulong codecId, int propertyHeaderSize,
         Stream input, StrategyBasedComWrappers cw, List<object> liveObjects,
         bool hasSizePrefix = true)
     {
-        int propertyHeaderSize = GetPropertyHeaderSize(codecId);
         long uncompressedSize = -1;
         if (hasSizePrefix)
         {
@@ -532,12 +530,4 @@ internal static class Codec
             Marshal.Release(decoderPtr);
         }
     }
-
-    private static int GetPropertyHeaderSize(ulong codecId) => codecId switch
-    {
-        Interop.CodecId.Lzma2 => 1,
-        Interop.CodecId.Ppmd => 5,
-        Interop.CodecId.Lzma => 5,
-        _ => throw new NotSupportedException($"Unknown property header size for codec 0x{codecId:X}")
-    };
 }

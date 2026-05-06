@@ -248,7 +248,7 @@ public class Lzma2Stream : Stream
     {
         var lib = ZevenLibrary.Instance;
         this.decoderInStreamPtr = Codec.InitStreamDecoder(
-            CodecId.Lzma2,
+            CodecId.Lzma2, Lzma2Codec.Lzma2PropertyHeaderSize,
             this.innerStream, lib.ComWrappers, this.liveObjects, hasSizePrefix: false);
     }
 
