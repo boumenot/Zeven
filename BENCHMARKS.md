@@ -22,6 +22,14 @@ Test data from [google/snappy testdata](https://github.com/google/snappy/tree/ma
 
 Lower ratio = better compression. All codecs use default compression level.
 
+## Speed Tiers
+
+At default settings:
+
+- **LZ4/Zstd/Brotli**: 1–6ms — 10–30× faster than LZMA2
+- **PPMd**: 3–30ms — best text ratios at moderate speed
+- **LZMA2**: 18–64ms — best binary ratios but slowest
+
 ## Observations
 
 - **LZMA2** — best ratio on binary/mixed data (html4, pb, gaviota), but 10–30× slower than Zstd/LZ4.
