@@ -574,6 +574,31 @@ public class ZevenFormatTests
         Assert.Contains("0xDEADBEEF", ex.Message);
     }
 
+    [Fact]
+    public void DecompressBlock_UnknownCodec_Throws()
+    {
+        ZevenLibrary.Load(@"q:\Zeven\bin\7z.dll");
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => Codec.DecompressBlock(new byte[5], 0xDEADBEEF,
+                    new MemoryStream(), new MemoryStream(), 0));
+        Assert.Contains("Unknown", ex.Message);
+        Assert.Contains("0xDEADBEEF", ex.Message);
+    }
+
+    [Fact]
+    public void CompressBlock_UnknownCodec_Throws()
+    {
+        ZevenLibrary.Load(@"q:\Zeven\bin\7z.dll");
+
+        var bogusOptions = new BogusCodecOptions();
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => Codec.CompressBlock(bogusOptions, new byte[5],
+                    new MemoryStream(), new MemoryStream()));
+        Assert.Contains("Unknown", ex.Message);
+        Assert.Contains("0xDEADBEEF", ex.Message);
+    }
+
     private class BogusCodecOptions : ICodecOptions
     {
         public ulong CodecId => 0xDEADBEEF;
