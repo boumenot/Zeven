@@ -33,9 +33,8 @@ public partial class InStreamWrapper : IInStream
             }
             return 0; // S_OK
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($"  [Read ERROR] {ex.Message}");
             processedSize = 0;
             return unchecked((int)0x80004005);
         }
@@ -55,10 +54,8 @@ public partial class InStreamWrapper : IInStream
             }
             return 0;
         }
-        catch (Exception ex)
+        catch
         {
-            Console.WriteLine($" [Seek ERROR] {ex.Message}");
-            Console.Out.Flush();
             return unchecked((int)0x80004005);
         }
     }
