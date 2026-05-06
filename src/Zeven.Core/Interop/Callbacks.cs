@@ -23,41 +23,26 @@ public partial class InStreamWrapper : IInStream
             processedSize = 0;
             return 0;
         }
-        try
+        unsafe
         {
-            unsafe
-            {
-                var span = new Span<byte>((void*)data, (int)size);
-                int bytesRead = this.stream.Read(span);
-                processedSize = (uint)bytesRead;
-            }
-            return 0; // S_OK
+            var span = new Span<byte>((void*)data, (int)size);
+            int bytesRead = this.stream.Read(span);
+            processedSize = (uint)bytesRead;
         }
-        catch
-        {
-            processedSize = 0;
-            return unchecked((int)0x80004005);
-        }
+        return 0;
     }
 
     public int Seek(long offset, uint seekOrigin, nint newPosition)
     {
-        try
+        ulong pos = (ulong)this.stream.Seek(offset, (SeekOrigin)seekOrigin);
+        unsafe
         {
-            ulong pos = (ulong)this.stream.Seek(offset, (SeekOrigin)seekOrigin);
-            unsafe
+            if (newPosition != nint.Zero)
             {
-                if (newPosition != nint.Zero)
-                {
-                    *(ulong*)newPosition = pos;
-                }
+                *(ulong*)newPosition = pos;
             }
-            return 0;
         }
-        catch
-        {
-            return unchecked((int)0x80004005);
-        }
+        return 0;
     }
 }
 
