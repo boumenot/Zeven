@@ -163,3 +163,133 @@ public class PpmdStreamTests
         }
     }
 }
+
+public class PpmdFormatTests
+{
+    [Fact]
+    public void WriteHeader_ReadHeader_RoundTrips()
+    {
+        byte[] props = [0x05, 0x18, 0x00, 0x00, 0x10];
+
+        using var ms = new MemoryStream();
+        PpmdFormat.WriteHeader(ms, props);
+
+        ms.Position = 0;
+        byte[] result = PpmdFormat.ReadHeader(ms);
+
+        Assert.Equal(props, result);
+    }
+
+    [Fact]
+    public void ReadHeader_BadMagic_Throws()
+    {
+        using var ms = new MemoryStream();
+        ms.Write([0x00, 0x00, 0x00, 0x00]);
+        ms.Write(new byte[5]);
+        ms.Write(new byte[4]);
+        ms.Position = 0;
+
+        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadHeader(ms));
+    }
+
+    [Fact]
+    public void ReadHeader_BadCrc_Throws()
+    {
+        byte[] props = [0x05, 0x18, 0x00, 0x00, 0x10];
+
+        using var ms = new MemoryStream();
+        PpmdFormat.WriteHeader(ms, props);
+
+        // Corrupt the last CRC byte
+        ms.Position = ms.Length - 1;
+        byte last = (byte)ms.ReadByte();
+        ms.Position = ms.Length - 1;
+        ms.WriteByte((byte)(last ^ 0xFF));
+
+        ms.Position = 0;
+        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadHeader(ms));
+    }
+
+    [Fact]
+    public void WriteChunk_ReadChunk_RoundTrips()
+    {
+        byte[] data = [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE];
+        long uncompressedSize = 1024;
+
+        using var ms = new MemoryStream();
+        PpmdFormat.WriteChunk(ms, uncompressedSize, data);
+
+        ms.Position = 0;
+        ChunkData? chunk = PpmdFormat.ReadChunk(ms);
+
+        Assert.NotNull(chunk);
+        Assert.Equal(uncompressedSize, chunk.Value.UncompressedSize);
+        Assert.Equal(data, chunk.Value.CompressedData);
+    }
+
+    [Fact]
+    public void ReadChunk_CorruptCrc_Throws()
+    {
+        byte[] data = [0xDE, 0xAD, 0xBE, 0xEF];
+
+        using var ms = new MemoryStream();
+        PpmdFormat.WriteChunk(ms, 100, data);
+
+        // Corrupt a byte in the compressed data region (starts at offset 16)
+        ms.Position = 16;
+        byte orig = (byte)ms.ReadByte();
+        ms.Position = 16;
+        ms.WriteByte((byte)(orig ^ 0xFF));
+
+        ms.Position = 0;
+        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadChunk(ms));
+    }
+
+    [Fact]
+    public void WriteEndMarker_ReadChunk_ReturnsNull()
+    {
+        using var ms = new MemoryStream();
+        PpmdFormat.WriteEndMarker(ms);
+
+        // Pad with 8 more zero bytes so ReadChunk can read the full 16-byte header
+        ms.Write(new byte[8]);
+
+        ms.Position = 0;
+        ChunkData? result = PpmdFormat.ReadChunk(ms);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ReadChunk_NegativeCompressedSize_Throws()
+    {
+        using var ms = new MemoryStream();
+
+        // Write uncompressed size > 0
+        Span<byte> header = stackalloc byte[16];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(header, 100);
+        // Write negative compressed size
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(header[8..], -1);
+        ms.Write(header);
+
+        ms.Position = 0;
+        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadChunk(ms));
+    }
+
+    [Fact]
+    public void ReadChunk_TruncatedData_Throws()
+    {
+        using var ms = new MemoryStream();
+
+        // Write header claiming 1000 bytes of compressed data
+        Span<byte> header = stackalloc byte[16];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(header, 500);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(header[8..], 1000);
+        ms.Write(header);
+        // Only write 10 bytes instead of 1000
+        ms.Write(new byte[10]);
+
+        ms.Position = 0;
+        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadChunk(ms));
+    }
+}
