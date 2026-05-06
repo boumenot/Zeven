@@ -98,6 +98,11 @@ internal static class ZevenFormat
             return null;
         }
 
+        if (uncompressedSize < 0)
+        {
+            throw new InvalidDataException("Uncompressed size is negative.");
+        }
+
         long compressedSize = BinaryPrimitives.ReadInt64LittleEndian(header[8..]);
         if (compressedSize < 0)
         {

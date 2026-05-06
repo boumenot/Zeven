@@ -474,6 +474,20 @@ public class ZevenFormatTests
     }
 
     [Fact]
+    public void ReadChunk_NegativeUncompressedSize_Throws()
+    {
+        using var ms = new MemoryStream();
+
+        Span<byte> header = stackalloc byte[16];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(header, -1);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(header[8..], 10);
+        ms.Write(header);
+
+        ms.Position = 0;
+        Assert.Throws<InvalidDataException>(() => ZevenFormat.ReadChunk(ms));
+    }
+
+    [Fact]
     public void ReadChunk_TruncatedData_Throws()
     {
         using var ms = new MemoryStream();
