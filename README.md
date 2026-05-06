@@ -183,6 +183,55 @@ Key interface IIDs (all under `{23170F69-40C1-278A-0000-00ggnnss0000}`):
 | `ICryptoGetTextPassword` | `05` | `10` | Password for reading |
 | `ICryptoGetTextPassword2` | `05` | `11` | Password for writing |
 
+## PPMd Chunked Wire Format
+
+`PpmdCodec` and `PpmdStream` use a custom chunked format (not compatible with 7z.exe or the .7z archive format).
+
+### Why chunking?
+
+PPMd's 7-Zip encoder exposes only a batch `Code()` API — it reads all input and writes all output in a single blocking call. There is no incremental encoding interface. To provide a streaming `Write()` API (`PpmdStream`), data is buffered into fixed-size chunks (default 16 MB) and each chunk is compressed independently.
+
+PPMd also lacks end-of-stream markers in its bitstream — the decoder must be told the exact output size to know when to stop. The chunked format stores per-chunk sizes to provide this.
+
+### Wire format
+
+```
+Stream header:
+  [4 bytes magic: "ZPM\x01"]               Format identifier + version
+  [5 bytes property header]                 PPMd encoder properties
+  [4 bytes CRC32, LE]                       IEEE CRC-32 of property header
+
+Per chunk:
+  [8 bytes uncompressed size, LE]           Original data size (must be > 0)
+  [8 bytes compressed size, LE]             Compressed payload size
+  [N bytes compressed data]                 The payload
+  [4 bytes CRC32, LE]                       IEEE CRC-32 of (sizes + data)
+
+End marker:
+  [16 bytes zero]                           Signals end of stream
+```
+
+CRC algorithm: IEEE CRC-32 (polynomial `0x04C11DB7`, reflected, init `0xFFFFFFFF`, final xor `0xFFFFFFFF`), serialized as little-endian `uint32`. Each chunk CRC covers the concatenation of the two 8-byte size fields and the compressed data.
+
+### Chunk size configuration
+
+```csharp
+// Default: 16 MB chunks
+var stream = new PpmdStream(output, CompressionMode.Compress);
+
+// Custom chunk size (e.g., 1 MB)
+var options = new PpmdOptions { ChunkSize = 1 * 1024 * 1024 };
+var stream = new PpmdStream(output, CompressionMode.Compress, options);
+
+// PpmdCodec always writes a single chunk (entire input)
+PpmdCodec.Compress(input, output);
+```
+
+### Interoperability
+
+- `PpmdCodec` and `PpmdStream` produce identical wire formats — output from one can be read by the other.
+- This format is **not** compatible with 7z.exe. PPMd in .7z archives stores the uncompressed size in the archive header, not in the compressed stream. This library's format is a standalone chunked framing specific to Zeven.
+
 ## Implementation Notes
 
 ### Key Pitfalls
