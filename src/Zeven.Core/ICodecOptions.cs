@@ -10,6 +10,9 @@ public interface ICodecOptions
     /// <summary>7-Zip codec ID (e.g., 0x21 for LZMA2).</summary>
     ulong CodecId { get; }
 
+    /// <summary>Maximum uncompressed bytes per chunk for streaming compression.</summary>
+    int ChunkSize { get; }
+
     /// <summary>
     /// Returns the codec properties to set before encoding.
     /// Keys are CoderPropId constants, values are uint or ulong.
