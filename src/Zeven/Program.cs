@@ -8,8 +8,8 @@ using Zeven.Core.Interop;
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
-const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
-const string ExePath = @"q:\7z2601-bin\x64\7za.exe";
+const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+const string ExePath = @"q:\\Zeven\\bin\\7za.exe";
 
 Guid clsid7z = FormatClsid.SevenZip;
 Guid iidInArchive = Iid.IInArchive;

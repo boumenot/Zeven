@@ -5,7 +5,7 @@ namespace Zeven.Tests;
 
 public class Lzma2CodecTests
 {
-    const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
+    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
 
     [Fact]
     public void FindCodecIndex_Lzma2_ReturnsValidIndex()

@@ -17,7 +17,7 @@ public class PipeCapacityBenchmark
     [GlobalSetup]
     public void Setup()
     {
-        ZevenLibrary.Load(@"q:\7z2601-bin\x64\7z.dll");
+        ZevenLibrary.Load(@"q:\\Zeven\\bin\\7z.dll");
         this.data = new byte[256 * 1024];
         new Random(42).NextBytes(this.data);
     }

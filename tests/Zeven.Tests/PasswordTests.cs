@@ -4,7 +4,7 @@ namespace Zeven.Tests;
 
 public class PasswordTests
 {
-    const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
+    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
 
     [Fact]
     public void CreateEncrypted_RoundTrip_WithCorrectPassword()

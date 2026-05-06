@@ -6,7 +6,7 @@ namespace Zeven.Tests;
 
 public class PpmdCodecTests
 {
-    const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
+    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
 
     static PpmdCodecTests() => ZevenLibrary.Load(DllPath);
 
@@ -125,7 +125,7 @@ public class PpmdCodecTests
 
 public class PpmdStreamTests
 {
-    const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
+    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
 
     static PpmdStreamTests() => ZevenLibrary.Load(DllPath);
 

@@ -29,7 +29,7 @@ public class ArchiveFixture : IDisposable
                 File.WriteAllBytes(Path.Combine(tempDir, name), content);
 
             var archivePath = Path.Combine(tempDir, "test.7z");
-            var psi = new ProcessStartInfo(@"q:\7z2601-bin\x64\7za.exe")
+            var psi = new ProcessStartInfo(@"q:\\Zeven\\bin\\7za.exe")
             {
                 Arguments = $"a -t7z \"{archivePath}\" \"{tempDir}\\*\"",
                 RedirectStandardOutput = true,
@@ -50,7 +50,7 @@ public class ArchiveFixture : IDisposable
 
 public class ArchiveReadTests : IClassFixture<ArchiveFixture>
 {
-    const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
+    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
     private readonly ArchiveFixture _fixture;
 
     public ArchiveReadTests(ArchiveFixture fixture) => _fixture = fixture;

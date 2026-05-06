@@ -6,7 +6,7 @@ namespace Zeven.Tests;
 
 public class ExtractionTests : IClassFixture<ArchiveFixture>
 {
-    const string DllPath = @"q:\7z2601-bin\x64\7z.dll";
+    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
     private readonly ArchiveFixture _fixture;
 
     public ExtractionTests(ArchiveFixture fixture) => _fixture = fixture;
