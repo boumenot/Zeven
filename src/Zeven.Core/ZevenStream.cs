@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO.Compression;
 using Zeven.Core.Interop;
 
@@ -13,12 +14,15 @@ namespace Zeven.Core;
 ///
 /// Decompress mode: reads chunks from the inner stream, decompresses each one, and
 /// serves data from the decompressed buffer.
+///
+/// The chunk buffer is rented from <see cref="ArrayPool{T}"/> to avoid LOH allocations.
 /// </summary>
 public class ZevenStream<TOptions> : Stream where TOptions : ICodecOptions, new()
 {
     private readonly Stream innerStream;
     private readonly CompressionMode mode;
     private readonly bool leaveOpen;
+    private readonly int chunkSize;
     private bool disposed;
 
     // Compress mode state
@@ -48,7 +52,8 @@ public class ZevenStream<TOptions> : Stream where TOptions : ICodecOptions, new(
         {
             this.options = options ?? new TOptions();
             this.propertyHeader = Codec.CapturePropertyHeader(this.options);
-            this.chunkBuffer = new byte[this.options.ChunkSize];
+            this.chunkSize = this.options.ChunkSize;
+            this.chunkBuffer = ArrayPool<byte>.Shared.Rent(this.chunkSize);
             this.chunkBufferUsed = 0;
             this.headerWritten = false;
         }
@@ -111,14 +116,14 @@ public class ZevenStream<TOptions> : Stream where TOptions : ICodecOptions, new(
 
         while (count > 0)
         {
-            int space = this.chunkBuffer!.Length - this.chunkBufferUsed;
+            int space = this.chunkSize - this.chunkBufferUsed;
             int toCopy = Math.Min(space, count);
             Buffer.BlockCopy(buffer, offset, this.chunkBuffer, this.chunkBufferUsed, toCopy);
             this.chunkBufferUsed += toCopy;
             offset += toCopy;
             count -= toCopy;
 
-            if (this.chunkBufferUsed == this.chunkBuffer.Length)
+            if (this.chunkBufferUsed == this.chunkSize)
             {
                 this.FlushChunk();
             }
@@ -165,6 +170,12 @@ public class ZevenStream<TOptions> : Stream where TOptions : ICodecOptions, new(
             }
             finally
             {
+                if (this.chunkBuffer != null)
+                {
+                    ArrayPool<byte>.Shared.Return(this.chunkBuffer);
+                    this.chunkBuffer = null;
+                }
+
                 this.decompressedBuffer?.Dispose();
                 this.decompressedBuffer = null;
 
