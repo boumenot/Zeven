@@ -315,6 +315,186 @@ internal static class Codec
         }
     }
 
+    /// <summary>
+    /// Creates an encoder, sets properties, captures the property header bytes, then releases.
+    /// </summary>
+    internal static byte[] CapturePropertyHeader(ICodecOptions options)
+    {
+        ulong codecId = options.CodecId;
+        var lib = ZevenLibrary.Instance;
+        int codecIndex = lib.FindCodecIndex(codecId);
+        if (codecIndex < 0)
+        {
+            throw new InvalidOperationException($"Codec 0x{codecId:X} not found in 7z.dll");
+        }
+
+        nint encoderPtr = lib.CreateEncoderObject((uint)codecIndex);
+        var cw = lib.ComWrappers;
+
+        try
+        {
+            // Set compression properties
+            Guid iidSetProps = Iid.ICompressSetCoderProperties;
+            Marshal.QueryInterface(encoderPtr, ref iidSetProps, out nint setPropsPtr);
+            if (setPropsPtr != nint.Zero)
+            {
+                try
+                {
+                    var setProps = (ICompressSetCoderProperties)cw.GetOrCreateObjectForComInstance(
+                        setPropsPtr, CreateObjectFlags.UniqueInstance);
+                    ApplyProperties(options, setProps);
+                }
+                finally
+                {
+                    Marshal.Release(setPropsPtr);
+                }
+            }
+
+            // Capture property header bytes
+            Guid iidWriteProps = Iid.ICompressWriteCoderProperties;
+            Marshal.QueryInterface(encoderPtr, ref iidWriteProps, out nint writePropsPtr);
+            if (writePropsPtr != nint.Zero)
+            {
+                try
+                {
+                    var writeProps = (ICompressWriteCoderProperties)cw.GetOrCreateObjectForComInstance(
+                        writePropsPtr, CreateObjectFlags.UniqueInstance);
+                    using var propStream = new MemoryStream();
+                    var outWrapper = new OutStreamWrapper(propStream);
+                    nint outCcw = cw.GetOrCreateComInterfaceForObject(
+                        outWrapper, CreateComInterfaceFlags.None);
+                    Guid iidSeqOut = Iid.ISequentialOutStream;
+                    Marshal.QueryInterface(outCcw, ref iidSeqOut, out nint outPtr);
+
+                    try
+                    {
+                        writeProps.WriteCoderProperties(outPtr);
+                    }
+                    finally
+                    {
+                        if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
+                        Marshal.Release(outCcw);
+                        GC.KeepAlive(outWrapper);
+                    }
+
+                    return propStream.ToArray();
+                }
+                finally
+                {
+                    Marshal.Release(writePropsPtr);
+                }
+            }
+
+            return [];
+        }
+        finally
+        {
+            Marshal.Release(encoderPtr);
+        }
+    }
+
+    /// <summary>
+    /// Creates a fresh encoder, compresses raw bytes from input to output, then releases.
+    /// Does not write any framing — just raw compressed data.
+    /// </summary>
+    internal static void CompressBlock(ICodecOptions options, byte[] propertyHeader,
+            Stream input, Stream output)
+    {
+        ulong codecId = options.CodecId;
+        var lib = ZevenLibrary.Instance;
+        int codecIndex = lib.FindCodecIndex(codecId);
+        if (codecIndex < 0)
+        {
+            throw new InvalidOperationException($"Codec 0x{codecId:X} not found in 7z.dll");
+        }
+
+        nint encoderPtr = lib.CreateEncoderObject((uint)codecIndex);
+        var cw = lib.ComWrappers;
+
+        try
+        {
+            // Set compression properties
+            Guid iidSetProps = Iid.ICompressSetCoderProperties;
+            Marshal.QueryInterface(encoderPtr, ref iidSetProps, out nint setPropsPtr);
+            if (setPropsPtr != nint.Zero)
+            {
+                try
+                {
+                    var setProps = (ICompressSetCoderProperties)cw.GetOrCreateObjectForComInstance(
+                        setPropsPtr, CreateObjectFlags.UniqueInstance);
+                    ApplyProperties(options, setProps);
+                }
+                finally
+                {
+                    Marshal.Release(setPropsPtr);
+                }
+            }
+
+            // Encode
+            var coder = (ICompressCoder)cw.GetOrCreateObjectForComInstance(
+                encoderPtr, CreateObjectFlags.UniqueInstance);
+            CodeStreams(coder, cw, input, output);
+        }
+        finally
+        {
+            Marshal.Release(encoderPtr);
+        }
+    }
+
+    /// <summary>
+    /// Creates a fresh decoder, decompresses raw bytes from input to output, then releases.
+    /// Does not read any framing — just raw compressed data.
+    /// </summary>
+    internal static void DecompressBlock(byte[] propertyHeader, ulong codecId,
+            Stream input, Stream output, long outSize)
+    {
+        var lib = ZevenLibrary.Instance;
+        int codecIndex = lib.FindCodecIndex(codecId);
+        if (codecIndex < 0)
+        {
+            throw new InvalidOperationException($"Codec 0x{codecId:X} not found in 7z.dll");
+        }
+
+        nint decoderPtr = lib.CreateDecoderObject((uint)codecIndex);
+        var cw = lib.ComWrappers;
+
+        try
+        {
+            // Set decoder properties
+            Guid iidSetDecProps = Iid.ICompressSetDecoderProperties2;
+            Marshal.QueryInterface(decoderPtr, ref iidSetDecProps, out nint setDecPropsPtr);
+            if (setDecPropsPtr != nint.Zero)
+            {
+                try
+                {
+                    var setDecProps = (ICompressSetDecoderProperties2)cw.GetOrCreateObjectForComInstance(
+                        setDecPropsPtr, CreateObjectFlags.UniqueInstance);
+                    unsafe
+                    {
+                        fixed (byte* pProps = propertyHeader)
+                        {
+                            setDecProps.SetDecoderProperties2(
+                                (nint)pProps, (uint)propertyHeader.Length);
+                        }
+                    }
+                }
+                finally
+                {
+                    Marshal.Release(setDecPropsPtr);
+                }
+            }
+
+            // Decode
+            var coder = (ICompressCoder)cw.GetOrCreateObjectForComInstance(
+                decoderPtr, CreateObjectFlags.UniqueInstance);
+            CodeStreams(coder, cw, input, output, outSize);
+        }
+        finally
+        {
+            Marshal.Release(decoderPtr);
+        }
+    }
+
     private static int GetPropertyHeaderSize(ulong codecId) => codecId switch
     {
         Interop.CodecId.Lzma2 => 1,

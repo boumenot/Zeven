@@ -72,6 +72,36 @@ public class PpmdCodecTests
         Assert.Equal(original, decompressed.ToArray());
     }
 
+    [Fact]
+    public void Compress_WritesChunkedFormatHeader()
+    {
+        var original = new byte[100];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        PpmdCodec.Compress(new MemoryStream(original), compressed);
+
+        compressed.Position = 0;
+        byte[] magic = new byte[4];
+        compressed.ReadExactly(magic);
+        Assert.Equal("ZPM\x01"u8.ToArray(), magic);
+    }
+
+    [Fact]
+    public void Compress_EmptyInput_WritesHeaderAndEndMarker()
+    {
+        using var compressed = new MemoryStream();
+        PpmdCodec.Compress(new MemoryStream([]), compressed);
+
+        // Header: 4 magic + 5 props + 4 CRC = 13, EndMarker: 16 zeros = total 29
+        Assert.Equal(29, compressed.Length);
+
+        compressed.Position = 0;
+        byte[] magic = new byte[4];
+        compressed.ReadExactly(magic);
+        Assert.Equal("ZPM\x01"u8.ToArray(), magic);
+    }
+
     [Theory]
     [InlineData(2)]
     [InlineData(8)]
