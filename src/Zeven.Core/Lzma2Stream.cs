@@ -202,10 +202,10 @@ public class Lzma2Stream : Stream
     private readonly List<object> liveObjects = new();
 
     public Lzma2Stream(Stream stream, CompressionMode mode, bool leaveOpen = false)
-        : this(stream, mode, 5, leaveOpen) { }
+        : this(stream, mode, null, leaveOpen) { }
 
-    public Lzma2Stream(Stream stream, CompressionMode mode, int level, bool leaveOpen = false,
-        int pipeBufferSize = StreamPipe.DefaultBufferSize)
+    public Lzma2Stream(Stream stream, CompressionMode mode, Lzma2Options? options,
+        bool leaveOpen = false, int pipeBufferSize = StreamPipe.DefaultBufferSize)
     {
         this.innerStream = stream;
         this.mode = mode;
@@ -214,7 +214,7 @@ public class Lzma2Stream : Stream
 
         if (mode == CompressionMode.Compress)
         {
-            this.InitCompress(level);
+            this.InitCompress(options ?? new Lzma2Options());
         }
         else
         {
@@ -222,20 +222,20 @@ public class Lzma2Stream : Stream
         }
     }
 
-    private void InitCompress(int level)
+    private void InitCompress(Lzma2Options options)
     {
         var pipe = new StreamPipe(this.pipeBufferSize);
         this.pipeWriter = pipe.WriterStream;
         var pipeReader = pipe.ReaderStream;
 
-        int capturedLevel = level;
+        Lzma2Options capturedOptions = options;
         Stream capturedInner = this.innerStream;
 
         this.backgroundTask = Task.Run(() =>
         {
             try
             {
-                Lzma2Codec.Compress(pipeReader, capturedInner, capturedLevel, writeSizePrefix: false);
+                CodecHelper.Compress(capturedOptions, pipeReader, capturedInner, writeSizePrefix: false);
             }
             finally
             {
@@ -248,7 +248,7 @@ public class Lzma2Stream : Stream
     {
         var lib = ZevenLibrary.Instance;
         this.decoderInStreamPtr = CodecHelper.InitStreamDecoder(
-            CodecId.Lzma2, Lzma2Codec.PropertyHeaderSize,
+            CodecId.Lzma2,
             this.innerStream, lib.ComWrappers, this.liveObjects, hasSizePrefix: false);
     }
 

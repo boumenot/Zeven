@@ -108,10 +108,10 @@ public class Lzma2CodecTests
         }
 
         using var fast = new MemoryStream();
-        Lzma2Codec.Compress(new MemoryStream(data), fast, level: 1);
+        Lzma2Codec.Compress(new MemoryStream(data), fast, new Lzma2Options { Level = 1 });
 
         using var ultra = new MemoryStream();
-        Lzma2Codec.Compress(new MemoryStream(data), ultra, level: 9);
+        Lzma2Codec.Compress(new MemoryStream(data), ultra, new Lzma2Options { Level = 9 });
 
         Assert.True(ultra.Length <= fast.Length,
             $"Level 9 ({ultra.Length}) should produce output <= level 1 ({fast.Length})");

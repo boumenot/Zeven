@@ -8,18 +8,15 @@ namespace Zeven.Core;
 /// </summary>
 public static class Lzma2Codec
 {
-    /// <summary>Property header size for LZMA2: 1 byte encoding dictionary size.</summary>
-    public const int PropertyHeaderSize = 1;
-
-    /// <summary>Compress a stream using LZMA2. Writes a 1-byte property header then compressed data.</summary>
-    public static void Compress(Stream input, Stream output, int level = 5, bool writeSizePrefix = true)
+    /// <summary>Compress a stream using LZMA2.</summary>
+    public static void Compress(Stream input, Stream output, Lzma2Options? options = null)
     {
-        CodecHelper.Compress(CodecId.Lzma2, input, output, level, writeSizePrefix);
+        CodecHelper.Compress(options ?? new Lzma2Options(), input, output);
     }
 
-    /// <summary>Decompress an LZMA2 stream. Reads the 1-byte property header then decompresses.</summary>
+    /// <summary>Decompress an LZMA2 stream.</summary>
     public static void Decompress(Stream input, Stream output)
     {
-        CodecHelper.Decompress(CodecId.Lzma2, PropertyHeaderSize, input, output);
+        CodecHelper.Decompress(CodecId.Lzma2, input, output);
     }
 }

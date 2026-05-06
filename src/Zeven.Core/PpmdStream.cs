@@ -32,10 +32,10 @@ public class PpmdStream : Stream
     private readonly List<object> liveObjects = new();
 
     public PpmdStream(Stream stream, CompressionMode mode, bool leaveOpen = false)
-        : this(stream, mode, 5, leaveOpen) { }
+        : this(stream, mode, null, leaveOpen) { }
 
-    public PpmdStream(Stream stream, CompressionMode mode, int level, bool leaveOpen = false,
-        int pipeBufferSize = StreamPipe.DefaultBufferSize)
+    public PpmdStream(Stream stream, CompressionMode mode, PpmdOptions? options,
+        bool leaveOpen = false, int pipeBufferSize = StreamPipe.DefaultBufferSize)
     {
         this.innerStream = stream;
         this.mode = mode;
@@ -44,7 +44,7 @@ public class PpmdStream : Stream
 
         if (mode == CompressionMode.Compress)
         {
-            this.InitCompress(level);
+            this.InitCompress(options ?? new PpmdOptions());
         }
         else
         {
@@ -52,13 +52,13 @@ public class PpmdStream : Stream
         }
     }
 
-    private void InitCompress(int level)
+    private void InitCompress(PpmdOptions options)
     {
         var pipe = new StreamPipe(this.pipeBufferSize);
         this.pipeWriter = pipe.WriterStream;
         var pipeReader = pipe.ReaderStream;
 
-        int capturedLevel = level;
+        PpmdOptions capturedOptions = options;
         Stream capturedInner = this.innerStream;
 
         // PPMd needs known input size for the size prefix.
@@ -67,11 +67,10 @@ public class PpmdStream : Stream
         {
             try
             {
-                // Read all pipe data into memory to know the size
                 using var buffer = new MemoryStream();
                 pipeReader.CopyTo(buffer);
                 buffer.Position = 0;
-                PpmdCodec.Compress(buffer, capturedInner, capturedLevel);
+                CodecHelper.Compress(capturedOptions, buffer, capturedInner);
             }
             finally
             {

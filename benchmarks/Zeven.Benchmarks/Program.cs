@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Zeven.Core;
@@ -26,7 +26,7 @@ public class PipeCapacityBenchmark
     public byte[] Batch()
     {
         using var output = new MemoryStream();
-        Lzma2Codec.Compress(new MemoryStream(this.data), output, level: 1);
+        Lzma2Codec.Compress(new MemoryStream(this.data), output, new Lzma2Options { Level = 1 });
         return output.ToArray();
     }
 
@@ -34,7 +34,7 @@ public class PipeCapacityBenchmark
     public byte[] Stream()
     {
         using var output = new MemoryStream();
-        using (var compressor = new Lzma2Stream(output, CompressionMode.Compress, level: 1,
+        using (var compressor = new Lzma2Stream(output, CompressionMode.Compress, new Lzma2Options { Level = 1 },
             leaveOpen: true, pipeBufferSize: this.PipeBufferSize))
         {
             compressor.Write(this.data);

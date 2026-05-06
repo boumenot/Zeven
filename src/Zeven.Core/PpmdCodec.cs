@@ -9,18 +9,15 @@ namespace Zeven.Core;
 /// </summary>
 public static class PpmdCodec
 {
-    /// <summary>Property header size for PPMd: 5 bytes (order + memory size).</summary>
-    public const int PropertyHeaderSize = 5;
-
-    /// <summary>Compress a stream using PPMd. Writes a 5-byte property header then compressed data.</summary>
-    public static void Compress(Stream input, Stream output, int level = 5, bool writeSizePrefix = true)
+    /// <summary>Compress a stream using PPMd.</summary>
+    public static void Compress(Stream input, Stream output, PpmdOptions? options = null)
     {
-        CodecHelper.Compress(CodecId.Ppmd, input, output, level, writeSizePrefix);
+        CodecHelper.Compress(options ?? new PpmdOptions(), input, output);
     }
 
-    /// <summary>Decompress a PPMd stream. Reads the 5-byte property header then decompresses.</summary>
+    /// <summary>Decompress a PPMd stream.</summary>
     public static void Decompress(Stream input, Stream output)
     {
-        CodecHelper.Decompress(CodecId.Ppmd, PropertyHeaderSize, input, output);
+        CodecHelper.Decompress(CodecId.Ppmd, input, output);
     }
 }

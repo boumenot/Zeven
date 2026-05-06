@@ -13,9 +13,10 @@ namespace Zeven.Core;
 /// </summary>
 internal static class CodecHelper
 {
-    public static void Compress(ulong codecId, Stream input, Stream output, int level,
+    public static void Compress(ICodecOptions options, Stream input, Stream output,
         bool writeSizePrefix = true)
     {
+        ulong codecId = options.CodecId;
         var lib = ZevenLibrary.Instance;
         int codecIndex = lib.FindCodecIndex(codecId);
         if (codecIndex < 0)
@@ -35,14 +36,14 @@ internal static class CodecHelper
         nint encoderPtr = lib.CreateEncoderObject((uint)codecIndex);
         var cw = lib.ComWrappers;
 
-        // Set compression level
+        // Set compression properties
         Guid iidSetProps = Iid.ICompressSetCoderProperties;
         Marshal.QueryInterface(encoderPtr, ref iidSetProps, out nint setPropsPtr);
         if (setPropsPtr != nint.Zero)
         {
             var setProps = (ICompressSetCoderProperties)cw.GetOrCreateObjectForComInstance(
                 setPropsPtr, CreateObjectFlags.UniqueInstance);
-            SetLevel(setProps, level);
+            ApplyProperties(options, setProps);
             Marshal.Release(setPropsPtr);
         }
 
@@ -72,8 +73,9 @@ internal static class CodecHelper
         CodeStreams(coder, cw, input, output);
     }
 
-    public static void Decompress(ulong codecId, int propertyHeaderSize, Stream input, Stream output)
+    public static void Decompress(ulong codecId, Stream input, Stream output)
     {
+        int propertyHeaderSize = GetPropertyHeaderSize(codecId);
         // Read 8-byte size prefix
         Span<byte> sizeBytes = stackalloc byte[8];
         if (input.ReadAtLeast(sizeBytes, 8, throwOnEndOfStream: false) < 8)
@@ -128,10 +130,11 @@ internal static class CodecHelper
     /// Initialize a decoder in stream-mode for incremental reading.
     /// Returns the decoder's ISequentialInStream COM pointer for direct Read() calls.
     /// </summary>
-    public static nint InitStreamDecoder(ulong codecId, int propertyHeaderSize,
+    public static nint InitStreamDecoder(ulong codecId,
         Stream input, StrategyBasedComWrappers cw, List<object> liveObjects,
         bool hasSizePrefix = true)
     {
+        int propertyHeaderSize = GetPropertyHeaderSize(codecId);
         long uncompressedSize = -1;
         if (hasSizePrefix)
         {
@@ -262,16 +265,57 @@ internal static class CodecHelper
         Marshal.ThrowExceptionForHR(hr);
     }
 
-    private static void SetLevel(ICompressSetCoderProperties setProps, int level)
+    private static void ApplyProperties(ICodecOptions options, ICompressSetCoderProperties setProps)
     {
+        var props = options.GetProperties();
+        if (props.Count == 0)
+        {
+            return;
+        }
+
         unsafe
         {
-            uint propId = CoderPropId.Level;
-            PropVariant propVal = default;
-            propVal.VarType = PropVariant.VT_UI4;
-            propVal.UIntValue = (uint)level;
+            var propIds = stackalloc uint[props.Count];
+            var propVals = stackalloc PropVariant[props.Count];
 
-            setProps.SetCoderProperties((nint)(&propId), (nint)(&propVal), 1);
+            int i = 0;
+            foreach (var (propId, value) in props)
+            {
+                propIds[i] = propId;
+                propVals[i] = default;
+                switch (value)
+                {
+                    case uint u:
+                        propVals[i].VarType = PropVariant.VT_UI4;
+                        propVals[i].UIntValue = u;
+                        break;
+                    case ulong ul:
+                        propVals[i].VarType = PropVariant.VT_UI8;
+                        propVals[i].ULongValue = ul;
+                        break;
+                    case int si:
+                        propVals[i].VarType = PropVariant.VT_I4;
+                        propVals[i].IntValue = si;
+                        break;
+                    case bool b:
+                        propVals[i].VarType = PropVariant.VT_BOOL;
+                        propVals[i].BoolValue = (short)(b ? -1 : 0);
+                        break;
+                    default:
+                        throw new ArgumentException($"Unsupported property value type: {value.GetType().Name}");
+                }
+                i++;
+            }
+
+            setProps.SetCoderProperties((nint)propIds, (nint)propVals, (uint)props.Count);
         }
     }
+
+    private static int GetPropertyHeaderSize(ulong codecId) => codecId switch
+    {
+        Interop.CodecId.Lzma2 => 1,
+        Interop.CodecId.Ppmd => 5,
+        Interop.CodecId.Lzma => 5,
+        _ => throw new NotSupportedException($"Unknown property header size for codec 0x{codecId:X}")
+    };
 }
