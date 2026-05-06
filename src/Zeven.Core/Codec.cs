@@ -111,7 +111,7 @@ internal static class Codec
         int codecIndex = lib.FindCodecIndex(codecId);
         if (codecIndex < 0)
         {
-            throw new InvalidOperationException($"Codec 0x{codecId:X} not found in 7z.dll");
+            throw new InvalidOperationException($"Codec {ZevenFormat.CodecName(codecId)} not found in 7z.dll");
         }
 
         nint encoderPtr = lib.CreateEncoderObject((uint)codecIndex);
@@ -191,7 +191,7 @@ internal static class Codec
         int codecIndex = lib.FindCodecIndex(codecId);
         if (codecIndex < 0)
         {
-            throw new InvalidOperationException($"Codec 0x{codecId:X} not found in 7z.dll");
+            throw new InvalidOperationException($"Codec {ZevenFormat.CodecName(codecId)} not found in 7z.dll");
         }
 
         nint encoderPtr = lib.CreateEncoderObject((uint)codecIndex);
@@ -238,7 +238,7 @@ internal static class Codec
         int codecIndex = lib.FindCodecIndex(codecId);
         if (codecIndex < 0)
         {
-            throw new InvalidOperationException($"Codec 0x{codecId:X} not found in 7z.dll");
+            throw new InvalidOperationException($"Codec {ZevenFormat.CodecName(codecId)} not found in 7z.dll");
         }
 
         nint decoderPtr = lib.CreateDecoderObject((uint)codecIndex);

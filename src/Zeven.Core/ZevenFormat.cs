@@ -83,7 +83,7 @@ internal static class ZevenFormat
         return header.PropertyHeader;
     }
 
-    private static string CodecName(ulong codecId) => codecId switch
+    internal static string CodecName(ulong codecId) => codecId switch
     {
         Interop.CodecId.Lzma2   => $"LZMA2 (0x{codecId:X})",
         Interop.CodecId.Lzma    => $"LZMA (0x{codecId:X})",

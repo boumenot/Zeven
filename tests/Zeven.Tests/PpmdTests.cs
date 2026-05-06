@@ -561,4 +561,23 @@ public class ZevenFormatTests
         Assert.Equal((ulong)0x04F71102, header.CodecId);
         Assert.Equal(props, header.PropertyHeader);
     }
+
+    [Fact]
+    public void CapturePropertyHeader_UnknownCodec_Throws()
+    {
+        ZevenLibrary.Load(@"q:\Zeven\bin\7z.dll");
+
+        var bogusOptions = new BogusCodecOptions();
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => Codec.CapturePropertyHeader(bogusOptions));
+        Assert.Contains("Unknown", ex.Message);
+        Assert.Contains("0xDEADBEEF", ex.Message);
+    }
+
+    private class BogusCodecOptions : ICodecOptions
+    {
+        public ulong CodecId => 0xDEADBEEF;
+        public int ChunkSize => 16 * 1024 * 1024;
+        public Dictionary<uint, object> GetProperties() => new();
+    }
 }
