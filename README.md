@@ -47,22 +47,32 @@ All codecs (LZMA2, PPMd, Zstd, Brotli, LZ4) follow the same API pattern — swap
 ### Archive API
 
 ```csharp
-using var lib = ZevenLibrary.Load(@"path\to\7z.dll");
-var fmt = lib.Formats.First(f => f.Name == "7z");
+using Zeven.Core;
 
-// Create an archive in memory
+var lib = ZevenLibrary.Load(@"path\to\7z.dll");
+
+// Create a .7z archive from files
 var files = new Dictionary<string, byte[]>
 {
-    ["hello.txt"] = "Hello, World!"u8.ToArray(),
+    ["report.pdf"]  = File.ReadAllBytes(@"C:\docs\report.pdf"),
+    ["data.csv"]    = File.ReadAllBytes(@"C:\docs\data.csv"),
 };
-using var outStream = new MemoryStream();
-lib.CreateArchive(fmt.ClassId, outStream, files);
 
-// Read it back
-using var handle = lib.CreateInArchive(fmt.ClassId);
-handle.Open(new MemoryStream(outStream.ToArray()));
-var extracted = handle.ExtractAll(); // Dict<string, byte[]>
+using var archive = File.Create(@"C:\docs\backup.7z");
+lib.CreateArchive(FormatClsid.SevenZip, archive, files);
+
+// Extract an archive
+using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
+handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
+var extracted = handle.ExtractAll();
+
+foreach (var (name, content) in extracted)
+{
+    File.WriteAllBytes(Path.Combine(@"C:\output", name), content);
+}
 ```
+
+> **Note:** The archive API currently requires all file contents in memory as `Dictionary<string, byte[]>`. This works well for small to medium archives but is not suitable for archiving many large files. A streaming archive API that reads directly from disk is a planned improvement.
 
 ## 7-Zip Native DLLs
 
