@@ -116,4 +116,71 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
             Assert.Equal((ulong)_fixture.OriginalFiles[path].Length, size);
         }
     }
+
+    [Fact]
+    public void Entries_ReturnsCorrectCount()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var format = lib.Formats.First(f => f.Name == "7z");
+        using var handle = lib.CreateInArchive(format.ClassId);
+        using var stream = new MemoryStream(_fixture.ArchiveBytes);
+        handle.Open(stream);
+
+        Assert.Equal(_fixture.OriginalFiles.Count, handle.Entries.Count);
+    }
+
+    [Fact]
+    public void Entries_ContainCorrectPaths()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var format = lib.Formats.First(f => f.Name == "7z");
+        using var handle = lib.CreateInArchive(format.ClassId);
+        using var stream = new MemoryStream(_fixture.ArchiveBytes);
+        handle.Open(stream);
+
+        var paths = handle.Entries.Select(e => e.Path).OrderBy(p => p).ToList();
+        Assert.Contains("hello.txt", paths);
+    }
+
+    [Fact]
+    public void Entries_HaveSize()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var format = lib.Formats.First(f => f.Name == "7z");
+        using var handle = lib.CreateInArchive(format.ClassId);
+        using var stream = new MemoryStream(_fixture.ArchiveBytes);
+        handle.Open(stream);
+
+        var entry = handle.Entries.First(e => e.Path == "hello.txt");
+        Assert.True(entry.Size > 0);
+        Assert.False(entry.IsDirectory);
+    }
+
+    [Fact]
+    public void Entries_HaveModifiedTime()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var format = lib.Formats.First(f => f.Name == "7z");
+        using var handle = lib.CreateInArchive(format.ClassId);
+        using var stream = new MemoryStream(_fixture.ArchiveBytes);
+        handle.Open(stream);
+
+        var entry = handle.Entries.First(e => e.Path == "hello.txt");
+        Assert.NotNull(entry.ModifiedTime);
+    }
+
+    [Fact]
+    public void Entries_IndexMatchesPosition()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var format = lib.Formats.First(f => f.Name == "7z");
+        using var handle = lib.CreateInArchive(format.ClassId);
+        using var stream = new MemoryStream(_fixture.ArchiveBytes);
+        handle.Open(stream);
+
+        for (int i = 0; i < handle.Entries.Count; i++)
+        {
+            Assert.Equal((uint)i, handle.Entries[i].Index);
+        }
+    }
 }

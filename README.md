@@ -134,53 +134,26 @@ handle.ExtractTo(@"C:\output");
 
 ```csharp
 using Zeven.Core;
-using Zeven.Core.Interop;
 
 var lib = ZevenLibrary.Load(@"path\to\7z.dll");
 using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
 handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
 
 // List all entries
-handle.Archive.GetNumberOfItems(out uint count);
-for (uint i = 0; i < count; i++)
+foreach (var entry in handle.Entries)
 {
-    PropVariant pv = default;
-    handle.Archive.GetProperty(i, PropId.kpidPath, ref pv);
-    string path = pv.GetBstr() ?? "";
-    NativeMethods.PropVariantClear(ref pv);
-
-    pv = default;
-    handle.Archive.GetProperty(i, PropId.kpidSize, ref pv);
-    ulong size = pv.GetUInt64();
-
-    Console.WriteLine($"  [{i}] {path} ({size:N0} bytes)");
+    Console.WriteLine($"  {entry.Path} ({entry.Size:N0} bytes)");
 }
 
 // Find a specific file and read its metadata
-uint target = 0;
-for (uint i = 0; i < count; i++)
-{
-    PropVariant pv = default;
-    handle.Archive.GetProperty(i, PropId.kpidPath, ref pv);
-    if (pv.GetBstr() == "report.pdf") { target = i; break; }
-    NativeMethods.PropVariantClear(ref pv);
-}
-
-PropVariant mv = default;
-handle.Archive.GetProperty(target, PropId.kpidSize, ref mv);
-Console.WriteLine($"Size: {mv.GetUInt64():N0} bytes");
-
-mv = default;
-handle.Archive.GetProperty(target, PropId.kpidMTime, ref mv);
-Console.WriteLine($"Modified: {mv.GetFileTime()}");
-
-mv = default;
-handle.Archive.GetProperty(target, PropId.kpidPackSize, ref mv);
-Console.WriteLine($"Compressed: {mv.GetUInt64():N0} bytes");
+var report = handle.Entries.First(e => e.Path == "report.pdf");
+Console.WriteLine($"Size: {report.Size:N0} bytes");
+Console.WriteLine($"Modified: {report.ModifiedTime}");
+Console.WriteLine($"Compressed: {report.PackedSize:N0} bytes");
 
 // Extract just that one file
-var data = handle.Extract([target]);
-File.WriteAllBytes(@"C:\output\report.pdf", data[target]);
+var data = handle.Extract([report.Index]);
+File.WriteAllBytes(@"C:\output\report.pdf", data[report.Index]);
 ```
 
 ## 7-Zip Native DLLs

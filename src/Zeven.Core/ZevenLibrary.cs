@@ -263,6 +263,7 @@ public sealed class ArchiveHandle : IDisposable
     private InStreamWrapper? streamWrapper;
     private ArchiveOpenCallback? openCallback;
     private string? password;
+    private IReadOnlyList<ArchiveEntry>? entries;
 
     internal ArchiveHandle(IInArchive archive, StrategyBasedComWrappers comWrappers)
     {
@@ -299,6 +300,22 @@ public sealed class ArchiveHandle : IDisposable
         Marshal.Release(callbackCcw);
 
         Marshal.ThrowExceptionForHR(hr);
+    }
+
+    /// <summary>
+    /// All entries in the archive with their metadata.
+    /// Populated lazily on first access after Open().
+    /// </summary>
+    public IReadOnlyList<ArchiveEntry> Entries
+    {
+        get
+        {
+            if (this.entries == null)
+            {
+                this.entries = this.LoadEntries();
+            }
+            return this.entries;
+        }
     }
 
     public void Dispose()
@@ -402,5 +419,77 @@ public sealed class ArchiveHandle : IDisposable
         Marshal.Release(callbackCcw);
         GC.KeepAlive(callback);
         Marshal.ThrowExceptionForHR(hr);
+    }
+
+    private List<ArchiveEntry> LoadEntries()
+    {
+        this.Archive.GetNumberOfItems(out uint count);
+        var result = new List<ArchiveEntry>((int)count);
+
+        for (uint i = 0; i < count; i++)
+        {
+            result.Add(this.LoadEntry(i));
+        }
+
+        return result;
+    }
+
+    private ArchiveEntry LoadEntry(uint index)
+    {
+        return new ArchiveEntry
+        {
+            Index = index,
+            Path = this.GetStringProperty(index, PropId.kpidPath) ?? index.ToString(),
+            IsDirectory = this.GetBoolProperty(index, PropId.kpidIsDir),
+            Size = this.GetUInt64Property(index, PropId.kpidSize),
+            PackedSize = this.GetUInt64Property(index, PropId.kpidPackSize),
+            CreatedTime = this.GetFileTimeProperty(index, PropId.kpidCTime),
+            ModifiedTime = this.GetFileTimeProperty(index, PropId.kpidMTime),
+            AccessedTime = this.GetFileTimeProperty(index, PropId.kpidATime),
+            IsEncrypted = this.GetBoolProperty(index, PropId.kpidEncrypted),
+            Crc = this.GetNullableUInt32Property(index, PropId.kpidCRC),
+            Method = this.GetStringProperty(index, PropId.kpidMethod),
+        };
+    }
+
+    private string? GetStringProperty(uint index, uint propId)
+    {
+        PropVariant pv = default;
+        this.Archive.GetProperty(index, propId, ref pv);
+        string? value = pv.GetBstr();
+        NativeMethods.PropVariantClear(ref pv);
+        return value;
+    }
+
+    private bool GetBoolProperty(uint index, uint propId)
+    {
+        PropVariant pv = default;
+        this.Archive.GetProperty(index, propId, ref pv);
+        return pv.GetBool();
+    }
+
+    private ulong GetUInt64Property(uint index, uint propId)
+    {
+        PropVariant pv = default;
+        this.Archive.GetProperty(index, propId, ref pv);
+        return pv.GetUInt64();
+    }
+
+    private DateTime? GetFileTimeProperty(uint index, uint propId)
+    {
+        PropVariant pv = default;
+        this.Archive.GetProperty(index, propId, ref pv);
+        return pv.GetFileTime();
+    }
+
+    private uint? GetNullableUInt32Property(uint index, uint propId)
+    {
+        PropVariant pv = default;
+        this.Archive.GetProperty(index, propId, ref pv);
+        if (pv.VarType == PropVariant.VT_UI4)
+        {
+            return pv.UIntValue;
+        }
+        return null;
     }
 }
