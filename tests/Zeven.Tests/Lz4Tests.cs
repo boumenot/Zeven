@@ -270,4 +270,69 @@ public class Lz4StreamTests
         stream.Dispose();
         stream.Dispose(); // should not throw
     }
+
+    [Fact]
+    public void Flush_EmitsPartialChunk()
+    {
+        var data = new byte[100];
+        new Random(42).NextBytes(data);
+
+        using var compressed = new MemoryStream();
+        var options = new Lz4Options { ChunkSize = 1024 };
+        using (var compressor = new Lz4Stream(compressed, CompressionMode.Compress, options,
+                leaveOpen: true))
+        {
+            compressor.Write(data);
+            compressor.Flush();
+            Assert.True(compressed.Length > 0, "Flush should emit data to output stream");
+        }
+    }
+
+    [Fact]
+    public void Flush_DataIsDecompressible()
+    {
+        var data = new byte[500];
+        new Random(42).NextBytes(data);
+
+        using var compressed = new MemoryStream();
+        var options = new Lz4Options { ChunkSize = 1024 };
+        using (var compressor = new Lz4Stream(compressed, CompressionMode.Compress, options,
+                leaveOpen: true))
+        {
+            compressor.Write(data);
+            compressor.Flush();
+            // Write more after flush
+            compressor.Write(data);
+        }
+
+        compressed.Position = 0;
+        using var decompressor = new Lz4Stream(compressed, CompressionMode.Decompress);
+        using var result = new MemoryStream();
+        decompressor.CopyTo(result);
+
+        var expected = new byte[data.Length * 2];
+        Buffer.BlockCopy(data, 0, expected, 0, data.Length);
+        Buffer.BlockCopy(data, 0, expected, data.Length, data.Length);
+        Assert.Equal(expected, result.ToArray());
+    }
+
+    [Fact]
+    public void Flush_NoData_DoesNotThrow()
+    {
+        using var compressed = new MemoryStream();
+        using var compressor = new Lz4Stream(compressed, CompressionMode.Compress, leaveOpen: true);
+        compressor.Flush(); // flush with empty buffer — should not throw or emit data
+        Assert.Equal(0, compressed.Length);
+    }
+
+    [Fact]
+    public void Flush_InDecompressMode_DoesNotThrow()
+    {
+        using var compressed = new MemoryStream();
+        Lz4Codec.Compress(new MemoryStream(new byte[1]), compressed);
+        compressed.Position = 0;
+
+        using var decompressor = new Lz4Stream(compressed, CompressionMode.Decompress);
+        decompressor.Flush(); // should be a no-op, not throw
+    }
 }
