@@ -474,6 +474,21 @@ public class ZevenFormatTests
     }
 
     [Fact]
+    public void ReadChunk_CorruptEndMarker_NonZeroCompressedSize_Throws()
+    {
+        using var ms = new MemoryStream();
+
+        // uncompressedSize = 0 (end marker signal) but compressedSize != 0 (corrupt)
+        Span<byte> header = stackalloc byte[16];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(header, 0);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(header[8..], 42);
+        ms.Write(header);
+
+        ms.Position = 0;
+        Assert.Throws<InvalidDataException>(() => ZevenFormat.ReadChunk(ms));
+    }
+
+    [Fact]
     public void ReadChunk_NegativeUncompressedSize_Throws()
     {
         using var ms = new MemoryStream();
