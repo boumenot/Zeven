@@ -18,6 +18,16 @@ public class Lzma2CodecTests
     }
 
     [Fact]
+    public void FindCodecIndex_UnknownCodec_ReturnsNegative()
+    {
+        var lib = ZevenLibrary.Load(DllPath);
+
+        int index = lib.FindCodecIndex(0xDEADBEEF);
+
+        Assert.Equal(-1, index);
+    }
+
+    [Fact]
     public void CreateEncoderObject_Lzma2_ReturnsNonNull()
     {
         var lib = ZevenLibrary.Load(DllPath);
