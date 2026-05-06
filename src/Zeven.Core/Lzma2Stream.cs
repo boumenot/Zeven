@@ -235,7 +235,7 @@ public class Lzma2Stream : Stream
         {
             try
             {
-                CodecHelper.Compress(capturedOptions, pipeReader, capturedInner, writeSizePrefix: false);
+                Codec.Compress(capturedOptions, pipeReader, capturedInner, writeSizePrefix: false);
             }
             finally
             {
@@ -247,7 +247,7 @@ public class Lzma2Stream : Stream
     private void InitDecompress()
     {
         var lib = ZevenLibrary.Instance;
-        this.decoderInStreamPtr = CodecHelper.InitStreamDecoder(
+        this.decoderInStreamPtr = Codec.InitStreamDecoder(
             CodecId.Lzma2,
             this.innerStream, lib.ComWrappers, this.liveObjects, hasSizePrefix: false);
     }

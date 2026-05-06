@@ -12,12 +12,12 @@ public static class PpmdCodec
     /// <summary>Compress a stream using PPMd.</summary>
     public static void Compress(Stream input, Stream output, PpmdOptions? options = null)
     {
-        CodecHelper.Compress(options ?? new PpmdOptions(), input, output);
+        Codec.Compress(options ?? new PpmdOptions(), input, output);
     }
 
     /// <summary>Decompress a PPMd stream.</summary>
     public static void Decompress(Stream input, Stream output)
     {
-        CodecHelper.Decompress(CodecId.Ppmd, input, output);
+        Codec.Decompress(CodecId.Ppmd, input, output);
     }
 }

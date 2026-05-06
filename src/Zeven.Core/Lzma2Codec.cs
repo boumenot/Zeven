@@ -11,12 +11,12 @@ public static class Lzma2Codec
     /// <summary>Compress a stream using LZMA2.</summary>
     public static void Compress(Stream input, Stream output, Lzma2Options? options = null)
     {
-        CodecHelper.Compress(options ?? new Lzma2Options(), input, output);
+        Codec.Compress(options ?? new Lzma2Options(), input, output);
     }
 
     /// <summary>Decompress an LZMA2 stream.</summary>
     public static void Decompress(Stream input, Stream output)
     {
-        CodecHelper.Decompress(CodecId.Lzma2, input, output);
+        Codec.Decompress(CodecId.Lzma2, input, output);
     }
 }

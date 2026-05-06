@@ -14,6 +14,10 @@
 | Parameter | camelCase | `dllPath` |
 | Constant | PascalCase | `VtEmpty` |
 
+## Naming — Avoid "Helper"
+
+Do not use `Helper`, `Utils`, `Manager`, or similar suffixes. Name classes after what they *do*, not that they *help*. For example: `Codec` not `CodecHelper`, `Archive` not `ArchiveHelper`.
+
 ## Braces
 
 `if`, `else`, `for`, `foreach`, `while`, `do`, `using`, and `lock` statements always use braces, even for single-line bodies.
@@ -28,6 +32,25 @@ if (size == 0)
 // ❌ wrong
 if (size == 0)
     return 0;
+```
+
+## Parameter Line Breaks
+
+When a method signature doesn't fit on one line, break after the opening parenthesis. Continuation parameters are indented by 8 spaces (two levels).
+
+```csharp
+// ✅ correct
+public static void Compress(ICodecOptions options, Stream input, Stream output,
+        bool writeSizePrefix = true)
+
+public static nint InitStreamDecoder(ulong codecId,
+        Stream input, StrategyBasedComWrappers cw, List<object> liveObjects,
+        bool hasSizePrefix = true)
+
+// ❌ wrong — aligned to opening paren
+public static void Compress(ICodecOptions options,
+                            Stream input,
+                            Stream output)
 ```
 
 ## Instance Members

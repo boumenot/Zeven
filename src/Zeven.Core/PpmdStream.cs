@@ -70,7 +70,7 @@ public class PpmdStream : Stream
                 using var buffer = new MemoryStream();
                 pipeReader.CopyTo(buffer);
                 buffer.Position = 0;
-                CodecHelper.Compress(capturedOptions, buffer, capturedInner);
+                Codec.Compress(capturedOptions, buffer, capturedInner);
             }
             finally
             {

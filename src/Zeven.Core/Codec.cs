@@ -11,7 +11,7 @@ namespace Zeven.Core;
 /// Shared batch compress/decompress logic for any 7-Zip codec.
 /// Used by Lzma2Codec, PpmdCodec, etc.
 /// </summary>
-internal static class CodecHelper
+internal static class Codec
 {
     public static void Compress(ICodecOptions options, Stream input, Stream output,
         bool writeSizePrefix = true)
@@ -42,7 +42,8 @@ internal static class CodecHelper
         if (setPropsPtr != nint.Zero)
         {
             var setProps = (ICompressSetCoderProperties)cw.GetOrCreateObjectForComInstance(
-                setPropsPtr, CreateObjectFlags.UniqueInstance);
+                setPropsPtr,
+                CreateObjectFlags.UniqueInstance);
             ApplyProperties(options, setProps);
             Marshal.Release(setPropsPtr);
         }
@@ -53,7 +54,8 @@ internal static class CodecHelper
         if (writePropsPtr != nint.Zero)
         {
             var writeProps = (ICompressWriteCoderProperties)cw.GetOrCreateObjectForComInstance(
-                writePropsPtr, CreateObjectFlags.UniqueInstance);
+                writePropsPtr,
+                CreateObjectFlags.UniqueInstance);
             var outWrapper = new OutStreamWrapper(output);
             nint outCcw = cw.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
             Guid iidSeqOut = Iid.ISequentialOutStream;
@@ -69,7 +71,8 @@ internal static class CodecHelper
 
         // Encode
         var coder = (ICompressCoder)cw.GetOrCreateObjectForComInstance(
-            encoderPtr, CreateObjectFlags.UniqueInstance);
+            encoderPtr,
+            CreateObjectFlags.UniqueInstance);
         CodeStreams(coder, cw, input, output);
     }
 
@@ -109,7 +112,8 @@ internal static class CodecHelper
         if (setDecPropsPtr != nint.Zero)
         {
             var setDecProps = (ICompressSetDecoderProperties2)cw.GetOrCreateObjectForComInstance(
-                setDecPropsPtr, CreateObjectFlags.UniqueInstance);
+                setDecPropsPtr,
+                CreateObjectFlags.UniqueInstance);
             unsafe
             {
                 fixed (byte* pProps = propBytes)
