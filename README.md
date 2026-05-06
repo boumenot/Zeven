@@ -51,28 +51,35 @@ using Zeven.Core;
 
 var lib = ZevenLibrary.Load(@"path\to\7z.dll");
 
-// Create a .7z archive from files
-var files = new Dictionary<string, byte[]>
+// Create a .7z archive from files on disk (no memory buffering)
+var files = new Dictionary<string, string>
 {
-    ["report.pdf"]  = File.ReadAllBytes(@"C:\docs\report.pdf"),
-    ["data.csv"]    = File.ReadAllBytes(@"C:\docs\data.csv"),
+    ["report.pdf"] = @"C:\docs\report.pdf",
+    ["data.csv"]   = @"C:\docs\data.csv",
 };
 
 using var archive = File.Create(@"C:\docs\backup.7z");
 lib.CreateArchive(FormatClsid.SevenZip, archive, files);
 
-// Extract an archive
+// Extract to a directory
 using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
 handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
-var extracted = handle.ExtractAll();
-
-foreach (var (name, content) in extracted)
-{
-    File.WriteAllBytes(Path.Combine(@"C:\output", name), content);
-}
+handle.ExtractTo(@"C:\output");
 ```
 
-> **Note:** The archive API currently requires all file contents in memory as `Dictionary<string, byte[]>`. This works well for small to medium archives but is not suitable for archiving many large files. A streaming archive API that reads directly from disk is a planned improvement.
+An in-memory API is also available for small archives:
+
+```csharp
+// Create from byte arrays
+var files = new Dictionary<string, byte[]>
+{
+    ["hello.txt"] = "Hello, World!"u8.ToArray(),
+};
+lib.CreateArchive(FormatClsid.SevenZip, output, files);
+
+// Extract to memory
+var extracted = handle.ExtractAll(); // Dictionary<uint, byte[]>
+```
 
 ## 7-Zip Native DLLs
 
