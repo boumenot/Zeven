@@ -122,6 +122,26 @@ public class PpmdCodecTests
 
         Assert.Equal(original, decompressed.ToArray());
     }
+
+    [Theory]
+    [InlineData(1 << 20)]       // 1 MB
+    [InlineData(4 * 1024 * 1024)]  // 4 MB
+    [InlineData(16 * 1024 * 1024)] // 16 MB
+    public void PpmdOptions_MemorySize_ValidValues(long memorySize)
+    {
+        var original = new byte[200];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        PpmdCodec.Compress(new MemoryStream(original), compressed,
+            new PpmdOptions { MemorySize = memorySize });
+
+        compressed.Position = 0;
+        using var decompressed = new MemoryStream();
+        PpmdCodec.Decompress(compressed, decompressed);
+
+        Assert.Equal(original, decompressed.ToArray());
+    }
 }
 
 public class PpmdStreamTests
