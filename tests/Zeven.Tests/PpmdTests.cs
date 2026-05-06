@@ -411,6 +411,20 @@ public class ZevenFormatTests
     }
 
     [Fact]
+    public void ReadHeaderAndValidateCodec_Mismatch_Throws()
+    {
+        var props = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 };
+        using var ms = new MemoryStream();
+        ZevenFormat.WriteHeader(ms, CodecId.Brotli, props);
+
+        ms.Position = 0;
+        var ex = Assert.Throws<InvalidDataException>(
+            () => ZevenFormat.ReadHeaderAndValidateCodec(ms, CodecId.Lzma2));
+        Assert.Contains("Brotli", ex.Message);
+        Assert.Contains("LZMA2", ex.Message);
+    }
+
+    [Fact]
     public void WriteChunk_ReadChunk_RoundTrips()
     {
         byte[] data = [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE];
