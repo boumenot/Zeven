@@ -15,7 +15,7 @@ public static class PpmdCodec
         var opts = options ?? new PpmdOptions();
         byte[] propertyHeader = Codec.CapturePropertyHeader(opts);
 
-        PpmdFormat.WriteHeader(output, propertyHeader);
+        ZevenFormat.WriteHeader(output, CodecId.Ppmd, propertyHeader);
 
         long inputLength = input.Length - input.Position;
         if (inputLength > 0)
@@ -23,21 +23,21 @@ public static class PpmdCodec
             using var compressed = new MemoryStream();
             Codec.CompressBlock(opts, propertyHeader, input, compressed);
 
-            PpmdFormat.WriteChunk(output, inputLength,
+            ZevenFormat.WriteChunk(output, inputLength,
                     compressed.GetBuffer().AsSpan(0, (int)compressed.Length));
         }
 
-        PpmdFormat.WriteEndMarker(output);
+        ZevenFormat.WriteEndMarker(output);
     }
 
     /// <summary>Decompress a PPMd stream in chunked format.</summary>
     public static void Decompress(Stream input, Stream output)
     {
-        byte[] propertyHeader = PpmdFormat.ReadHeader(input);
+        byte[] propertyHeader = ZevenFormat.ReadHeader(input).PropertyHeader;
 
         while (true)
         {
-            var chunk = PpmdFormat.ReadChunk(input);
+            var chunk = ZevenFormat.ReadChunk(input);
             if (chunk == null)
             {
                 break;

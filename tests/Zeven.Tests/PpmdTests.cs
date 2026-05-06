@@ -84,7 +84,7 @@ public class PpmdCodecTests
         compressed.Position = 0;
         byte[] magic = new byte[4];
         compressed.ReadExactly(magic);
-        Assert.Equal("ZPM\x01"u8.ToArray(), magic);
+        Assert.Equal("ZVN\x01"u8.ToArray(), magic);
     }
 
     [Fact]
@@ -93,13 +93,14 @@ public class PpmdCodecTests
         using var compressed = new MemoryStream();
         PpmdCodec.Compress(new MemoryStream([]), compressed);
 
-        // Header: 4 magic + 5 props + 4 CRC = 13, EndMarker: 16 zeros = total 29
-        Assert.Equal(29, compressed.Length);
+        // Header: 4 magic + 4 codecId + 2 propLen + 6 reserved + 5 props + 4 CRC = 25
+        // EndMarker: 16 zeros = total 41
+        Assert.Equal(41, compressed.Length);
 
         compressed.Position = 0;
         byte[] magic = new byte[4];
         compressed.ReadExactly(magic);
-        Assert.Equal("ZPM\x01"u8.ToArray(), magic);
+        Assert.Equal("ZVN\x01"u8.ToArray(), magic);
     }
 
     [Theory]
@@ -288,7 +289,7 @@ public class PpmdStreamTests
     }
 }
 
-public class PpmdFormatTests
+public class ZevenFormatTests
 {
     [Fact]
     public void WriteHeader_ReadHeader_RoundTrips()
@@ -296,24 +297,24 @@ public class PpmdFormatTests
         byte[] props = [0x05, 0x18, 0x00, 0x00, 0x10];
 
         using var ms = new MemoryStream();
-        PpmdFormat.WriteHeader(ms, props);
+        ZevenFormat.WriteHeader(ms, 0x030401, props);
 
         ms.Position = 0;
-        byte[] result = PpmdFormat.ReadHeader(ms);
+        var header = ZevenFormat.ReadHeader(ms);
 
-        Assert.Equal(props, result);
+        Assert.Equal(props, header.PropertyHeader);
     }
 
     [Fact]
     public void ReadHeader_BadMagic_Throws()
     {
         using var ms = new MemoryStream();
-        ms.Write([0x00, 0x00, 0x00, 0x00]);
-        ms.Write(new byte[5]);
+        ms.Write([0xFF, 0xFE, 0xFD, 0xFC]);
+        ms.Write(new byte[12]);
         ms.Write(new byte[4]);
         ms.Position = 0;
 
-        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadHeader(ms));
+        Assert.Throws<InvalidDataException>(() => ZevenFormat.ReadHeader(ms));
     }
 
     [Fact]
@@ -322,7 +323,7 @@ public class PpmdFormatTests
         byte[] props = [0x05, 0x18, 0x00, 0x00, 0x10];
 
         using var ms = new MemoryStream();
-        PpmdFormat.WriteHeader(ms, props);
+        ZevenFormat.WriteHeader(ms, 0x030401, props);
 
         // Corrupt the last CRC byte
         ms.Position = ms.Length - 1;
@@ -331,7 +332,7 @@ public class PpmdFormatTests
         ms.WriteByte((byte)(last ^ 0xFF));
 
         ms.Position = 0;
-        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadHeader(ms));
+        Assert.Throws<InvalidDataException>(() => ZevenFormat.ReadHeader(ms));
     }
 
     [Fact]
@@ -341,10 +342,10 @@ public class PpmdFormatTests
         long uncompressedSize = 1024;
 
         using var ms = new MemoryStream();
-        PpmdFormat.WriteChunk(ms, uncompressedSize, data);
+        ZevenFormat.WriteChunk(ms, uncompressedSize, data);
 
         ms.Position = 0;
-        ChunkData? chunk = PpmdFormat.ReadChunk(ms);
+        ChunkData? chunk = ZevenFormat.ReadChunk(ms);
 
         Assert.NotNull(chunk);
         Assert.Equal(uncompressedSize, chunk.Value.UncompressedSize);
@@ -357,7 +358,7 @@ public class PpmdFormatTests
         byte[] data = [0xDE, 0xAD, 0xBE, 0xEF];
 
         using var ms = new MemoryStream();
-        PpmdFormat.WriteChunk(ms, 100, data);
+        ZevenFormat.WriteChunk(ms, 100, data);
 
         // Corrupt a byte in the compressed data region (starts at offset 16)
         ms.Position = 16;
@@ -366,17 +367,17 @@ public class PpmdFormatTests
         ms.WriteByte((byte)(orig ^ 0xFF));
 
         ms.Position = 0;
-        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadChunk(ms));
+        Assert.Throws<InvalidDataException>(() => ZevenFormat.ReadChunk(ms));
     }
 
     [Fact]
     public void WriteEndMarker_ReadChunk_ReturnsNull()
     {
         using var ms = new MemoryStream();
-        PpmdFormat.WriteEndMarker(ms);
+        ZevenFormat.WriteEndMarker(ms);
 
         ms.Position = 0;
-        ChunkData? result = PpmdFormat.ReadChunk(ms);
+        ChunkData? result = ZevenFormat.ReadChunk(ms);
 
         Assert.Null(result);
     }
@@ -394,7 +395,7 @@ public class PpmdFormatTests
         ms.Write(header);
 
         ms.Position = 0;
-        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadChunk(ms));
+        Assert.Throws<InvalidDataException>(() => ZevenFormat.ReadChunk(ms));
     }
 
     [Fact]
@@ -411,6 +412,35 @@ public class PpmdFormatTests
         ms.Write(new byte[10]);
 
         ms.Position = 0;
-        Assert.Throws<InvalidDataException>(() => PpmdFormat.ReadChunk(ms));
+        Assert.Throws<InvalidDataException>(() => ZevenFormat.ReadChunk(ms));
+    }
+
+    [Fact]
+    public void ReadHeader_ReturnsCorrectCodecId()
+    {
+        ulong codecId = 0x04F71101; // Zstd
+
+        using var ms = new MemoryStream();
+        ZevenFormat.WriteHeader(ms, codecId, [0xAA, 0xBB]);
+
+        ms.Position = 0;
+        var header = ZevenFormat.ReadHeader(ms);
+
+        Assert.Equal(codecId, header.CodecId);
+    }
+
+    [Fact]
+    public void WriteHeader_VariablePropertyLength()
+    {
+        byte[] props = [0x01, 0x02, 0x03]; // 3-byte Brotli-size props
+
+        using var ms = new MemoryStream();
+        ZevenFormat.WriteHeader(ms, 0x04F71102, props);
+
+        ms.Position = 0;
+        var header = ZevenFormat.ReadHeader(ms);
+
+        Assert.Equal((ulong)0x04F71102, header.CodecId);
+        Assert.Equal(props, header.PropertyHeader);
     }
 }

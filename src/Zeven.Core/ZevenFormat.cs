@@ -4,25 +4,27 @@ using System.IO.Hashing;
 namespace Zeven.Core;
 
 /// <summary>
-/// Reads and writes the Zeven chunked PPMd wire format with CRC32 integrity checks.
+/// Reads and writes the Zeven chunked wire format with CRC32 integrity checks.
 /// </summary>
-internal static class PpmdFormat
+internal static class ZevenFormat
 {
-    internal const int PropertyHeaderSize = 5;
+    static readonly byte[] Magic = "ZVN\x01"u8.ToArray();
 
-    static readonly byte[] Magic = "ZPM\x01"u8.ToArray();
-
-    /// <summary>Writes stream header: magic + property header + CRC32.</summary>
-    public static void WriteHeader(Stream output, ReadOnlySpan<byte> propertyHeader)
+    /// <summary>
+    /// Writes the 16-byte stream header: magic + codec ID + property length + reserved +
+    /// property header + CRC32.
+    /// </summary>
+    public static void WriteHeader(Stream output, ulong codecId,
+            ReadOnlySpan<byte> propertyHeader)
     {
-        if (propertyHeader.Length != PropertyHeaderSize)
-        {
-            throw new ArgumentException(
-                $"Property header must be {PropertyHeaderSize} bytes.",
-                nameof(propertyHeader));
-        }
-
         output.Write(Magic);
+
+        Span<byte> buf = stackalloc byte[12];
+        BinaryPrimitives.WriteUInt32LittleEndian(buf, (uint)codecId);
+        BinaryPrimitives.WriteUInt16LittleEndian(buf[4..], (ushort)propertyHeader.Length);
+        buf[6..].Clear();
+        output.Write(buf);
+
         output.Write(propertyHeader);
 
         Span<byte> crcBuf = stackalloc byte[4];
@@ -32,19 +34,25 @@ internal static class PpmdFormat
     }
 
     /// <summary>
-    /// Reads and validates stream header. Returns the 5-byte property header.
+    /// Reads and validates the stream header. Returns a <see cref="ZevenHeader"/> with
+    /// the codec ID and property header bytes.
     /// </summary>
-    public static byte[] ReadHeader(Stream input)
+    public static ZevenHeader ReadHeader(Stream input)
     {
         Span<byte> magicBuf = stackalloc byte[4];
         ReadExactly(input, magicBuf);
 
         if (!magicBuf.SequenceEqual(Magic))
         {
-            throw new InvalidDataException("Invalid PPMd format magic bytes.");
+            throw new InvalidDataException("Invalid Zeven format magic bytes.");
         }
 
-        byte[] propertyHeader = new byte[PropertyHeaderSize];
+        Span<byte> buf = stackalloc byte[12];
+        ReadExactly(input, buf);
+        ulong codecId = BinaryPrimitives.ReadUInt32LittleEndian(buf);
+        ushort propLen = BinaryPrimitives.ReadUInt16LittleEndian(buf[4..]);
+
+        byte[] propertyHeader = new byte[propLen];
         ReadExactly(input, propertyHeader);
 
         Span<byte> crcBuf = stackalloc byte[4];
@@ -57,7 +65,7 @@ internal static class PpmdFormat
             throw new InvalidDataException("Property header CRC32 mismatch.");
         }
 
-        return propertyHeader;
+        return new ZevenHeader(codecId, propertyHeader);
     }
 
     /// <summary>Writes a data chunk: sizes + compressed data + CRC32.</summary>
@@ -153,3 +161,5 @@ internal static class PpmdFormat
 }
 
 internal readonly record struct ChunkData(long UncompressedSize, byte[] CompressedData);
+
+internal readonly record struct ZevenHeader(ulong CodecId, byte[] PropertyHeader);

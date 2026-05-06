@@ -8,7 +8,7 @@ namespace Zeven.Core;
 /// Uses the Zeven chunked wire format — no background threads.
 ///
 /// Compress mode: buffers writes into a chunk buffer, flushing full chunks to the
-/// inner stream via <see cref="PpmdFormat"/> framing.
+/// inner stream via <see cref="ZevenFormat"/> framing.
 ///
 /// Decompress mode: reads chunks from the inner stream, decompresses each one, and
 /// serves data from the decompressed buffer.
@@ -52,7 +52,7 @@ public class PpmdStream : Stream
         }
         else
         {
-            this.decompressPropertyHeader = PpmdFormat.ReadHeader(stream);
+            this.decompressPropertyHeader = ZevenFormat.ReadHeader(stream).PropertyHeader;
         }
     }
 
@@ -149,11 +149,11 @@ public class PpmdStream : Stream
 
                 if (!this.headerWritten)
                 {
-                    PpmdFormat.WriteHeader(this.innerStream, this.propertyHeader!);
+                    ZevenFormat.WriteHeader(this.innerStream, CodecId.Ppmd, this.propertyHeader!);
                     this.headerWritten = true;
                 }
 
-                PpmdFormat.WriteEndMarker(this.innerStream);
+                ZevenFormat.WriteEndMarker(this.innerStream);
             }
 
             this.decompressedBuffer?.Dispose();
@@ -177,7 +177,7 @@ public class PpmdStream : Stream
 
         if (!this.headerWritten)
         {
-            PpmdFormat.WriteHeader(this.innerStream, this.propertyHeader!);
+            ZevenFormat.WriteHeader(this.innerStream, CodecId.Ppmd, this.propertyHeader!);
             this.headerWritten = true;
         }
 
@@ -186,7 +186,7 @@ public class PpmdStream : Stream
         using var compressed = new MemoryStream();
         Codec.CompressBlock(this.options!, this.propertyHeader!, inputStream, compressed);
 
-        PpmdFormat.WriteChunk(this.innerStream, this.chunkBufferUsed,
+        ZevenFormat.WriteChunk(this.innerStream, this.chunkBufferUsed,
                 compressed.GetBuffer().AsSpan(0, (int)compressed.Length));
 
         this.chunkBufferUsed = 0;
@@ -194,7 +194,7 @@ public class PpmdStream : Stream
 
     private void LoadNextChunk()
     {
-        var chunk = PpmdFormat.ReadChunk(this.innerStream);
+        var chunk = ZevenFormat.ReadChunk(this.innerStream);
         if (chunk == null)
         {
             this.eof = true;
