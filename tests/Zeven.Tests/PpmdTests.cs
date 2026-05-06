@@ -55,6 +55,42 @@ public class PpmdCodecTests
         Assert.True(compressed.Length < original.Length,
             $"Compressed {compressed.Length} should be < original {original.Length}");
     }
+
+    [Fact]
+    public void PpmdOptions_Default_RoundTrips()
+    {
+        var original = new byte[500];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        PpmdCodec.Compress(new MemoryStream(original), compressed);
+
+        compressed.Position = 0;
+        using var decompressed = new MemoryStream();
+        PpmdCodec.Decompress(compressed, decompressed);
+
+        Assert.Equal(original, decompressed.ToArray());
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(8)]
+    [InlineData(16)]
+    public void PpmdOptions_Order_ValidValues(int order)
+    {
+        var original = new byte[200];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        PpmdCodec.Compress(new MemoryStream(original), compressed,
+            new PpmdOptions { Order = order });
+
+        compressed.Position = 0;
+        using var decompressed = new MemoryStream();
+        PpmdCodec.Decompress(compressed, decompressed);
+
+        Assert.Equal(original, decompressed.ToArray());
+    }
 }
 
 public class PpmdStreamTests
