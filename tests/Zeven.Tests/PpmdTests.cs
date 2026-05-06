@@ -287,6 +287,35 @@ public class PpmdStreamTests
             Assert.True(compressed.Length > 0, "Flush should emit data to output stream");
         }
     }
+
+    [Fact]
+    public void Length_Throws_NotSupportedException()
+    {
+        using var stream = new PpmdStream(new MemoryStream(), CompressionMode.Compress);
+        Assert.Throws<NotSupportedException>(() => stream.Length);
+    }
+
+    [Fact]
+    public void Position_Throws_NotSupportedException()
+    {
+        using var stream = new PpmdStream(new MemoryStream(), CompressionMode.Compress);
+        Assert.Throws<NotSupportedException>(() => stream.Position);
+        Assert.Throws<NotSupportedException>(() => stream.Position = 0);
+    }
+
+    [Fact]
+    public void Seek_Throws_NotSupportedException()
+    {
+        using var stream = new PpmdStream(new MemoryStream(), CompressionMode.Compress);
+        Assert.Throws<NotSupportedException>(() => stream.Seek(0, SeekOrigin.Begin));
+    }
+
+    [Fact]
+    public void SetLength_Throws_NotSupportedException()
+    {
+        using var stream = new PpmdStream(new MemoryStream(), CompressionMode.Compress);
+        Assert.Throws<NotSupportedException>(() => stream.SetLength(0));
+    }
 }
 
 public class ZevenFormatTests
