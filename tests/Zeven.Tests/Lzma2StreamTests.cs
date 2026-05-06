@@ -199,6 +199,24 @@ public class Lzma2StreamTests
         Assert.Throws<NotSupportedException>(() => stream.SetLength(0));
     }
 
+    [Fact]
+    public void Read_InCompressMode_Throws()
+    {
+        using var stream = new Lzma2Stream(new MemoryStream(), CompressionMode.Compress);
+        Assert.Throws<InvalidOperationException>(() => stream.Read(new byte[1], 0, 1));
+    }
+
+    [Fact]
+    public void Write_InDecompressMode_Throws()
+    {
+        using var compressed = new MemoryStream();
+        Lzma2Codec.Compress(new MemoryStream(new byte[1]), compressed);
+        compressed.Position = 0;
+
+        using var stream = new Lzma2Stream(compressed, CompressionMode.Decompress);
+        Assert.Throws<InvalidOperationException>(() => stream.Write(new byte[1], 0, 1));
+    }
+
     /// <summary>A stream that throws on Write — used to test error propagation.</summary>
     private class BrokenWriteStream : MemoryStream
     {

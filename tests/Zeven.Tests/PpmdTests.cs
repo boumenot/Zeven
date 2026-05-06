@@ -316,6 +316,24 @@ public class PpmdStreamTests
         using var stream = new PpmdStream(new MemoryStream(), CompressionMode.Compress);
         Assert.Throws<NotSupportedException>(() => stream.SetLength(0));
     }
+
+    [Fact]
+    public void Read_InCompressMode_Throws()
+    {
+        using var stream = new PpmdStream(new MemoryStream(), CompressionMode.Compress);
+        Assert.Throws<InvalidOperationException>(() => stream.Read(new byte[1], 0, 1));
+    }
+
+    [Fact]
+    public void Write_InDecompressMode_Throws()
+    {
+        using var compressed = new MemoryStream();
+        PpmdCodec.Compress(new MemoryStream(new byte[1]), compressed);
+        compressed.Position = 0;
+
+        using var stream = new PpmdStream(compressed, CompressionMode.Decompress);
+        Assert.Throws<InvalidOperationException>(() => stream.Write(new byte[1], 0, 1));
+    }
 }
 
 public class ZevenFormatTests
