@@ -118,10 +118,10 @@ internal static class PpmdFormat
         return new ChunkData(uncompressedSize, compressedData);
     }
 
-    /// <summary>Writes 8 zero bytes as the end-of-stream marker.</summary>
+    /// <summary>Writes 16 zero bytes as the end-of-stream marker (matching the chunk header size).</summary>
     public static void WriteEndMarker(Stream output)
     {
-        Span<byte> marker = stackalloc byte[8];
+        Span<byte> marker = stackalloc byte[16];
         marker.Clear();
         output.Write(marker);
     }

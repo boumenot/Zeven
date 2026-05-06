@@ -281,9 +281,6 @@ public class PpmdFormatTests
         using var ms = new MemoryStream();
         PpmdFormat.WriteEndMarker(ms);
 
-        // Pad with 8 more zero bytes so ReadChunk can read the full 16-byte header
-        ms.Write(new byte[8]);
-
         ms.Position = 0;
         ChunkData? result = PpmdFormat.ReadChunk(ms);
 

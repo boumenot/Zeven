@@ -27,11 +27,7 @@ public static class PpmdCodec
                     compressed.GetBuffer().AsSpan(0, (int)compressed.Length));
         }
 
-        // Write 16 zero bytes as end marker (uncompressedSize=0, compressedSize=0)
-        // so ReadChunk reads a full 16-byte header and returns null.
-        Span<byte> endMarker = stackalloc byte[16];
-        endMarker.Clear();
-        output.Write(endMarker);
+        PpmdFormat.WriteEndMarker(output);
     }
 
     /// <summary>Decompress a PPMd stream in chunked format.</summary>
