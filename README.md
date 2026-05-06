@@ -7,8 +7,46 @@ No COM registration, no IDL, no type libraries — just P/Invoke `CreateObject` 
 ## Quick Start
 
 ```csharp
-using Zeven;
+using Zeven.Core;
 
+// Load the 7-Zip native DLL
+ZevenLibrary.Load(@"path\to\7z.dll");
+
+// Batch compress/decompress
+using var compressed = new MemoryStream();
+ZstdCodec.Compress(inputStream, compressed);
+
+compressed.Position = 0;
+using var decompressed = new MemoryStream();
+ZstdCodec.Decompress(compressed, decompressed);
+```
+
+```csharp
+using System.IO.Compression;
+using Zeven.Core;
+
+// Streaming compress (DeflateStream pattern)
+using (var compressor = new ZstdStream(outputFile, CompressionMode.Compress))
+{
+    compressor.Write(data);
+}
+
+// Streaming decompress
+using var decompressor = new ZstdStream(inputFile, CompressionMode.Decompress);
+decompressor.CopyTo(result);
+```
+
+```csharp
+// Custom options
+var options = new ZstdOptions { Level = 9, ChunkSize = 4 * 1024 * 1024 };
+using var compressor = new ZstdStream(output, CompressionMode.Compress, options);
+```
+
+All codecs (LZMA2, PPMd, Zstd, Brotli, LZ4) follow the same API pattern — swap `Zstd` for any codec name.
+
+### Archive API
+
+```csharp
 using var lib = ZevenLibrary.Load(@"path\to\7z.dll");
 var fmt = lib.Formats.First(f => f.Name == "7z");
 
