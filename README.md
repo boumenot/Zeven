@@ -131,9 +131,9 @@ The **codecs** available inside `.7z` (and sometimes `.zip`) are:
 | ARM / ARM64 | ✅ | ✅ | — | ARM executable filter |
 | RISCV | ✅ | ✅ | — | RISC-V executable filter |
 | 7zAES | ✅ | ✅ | — | AES-256 encryption |
-| Zstandard | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71101`) |
-| Brotli | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71102`) |
-| LZ4 | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71104`) |
+| Zstandard | ✅ | ✅ | `ZstdCodec` / `ZstdStream` | Via 7-Zip-zstd; chunked format |
+| Brotli | ✅ | ✅ | `BrotliCodec` / `ZevenBrotliStream` | Via 7-Zip-zstd; chunked format |
+| LZ4 | ✅ | ✅ | `Lz4Codec` / `Lz4Stream` | Via 7-Zip-zstd; chunked format |
 | LZ5 | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71105`) |
 | Lizard | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71106`) |
 | Fast LZMA2 | ✅ | ✅ | — | Via 7-Zip-zstd (same ID as LZMA2) |
@@ -189,23 +189,28 @@ Key interface IIDs (all under `{23170F69-40C1-278A-0000-00ggnnss0000}`):
 | `ICryptoGetTextPassword` | `05` | `10` | Password for reading |
 | `ICryptoGetTextPassword2` | `05` | `11` | Password for writing |
 
-## PPMd Chunked Wire Format
+## Zeven Stream Format
 
-`PpmdCodec` and `PpmdStream` use a custom chunked format (not compatible with 7z.exe or the .7z archive format).
+The batch codec classes (`PpmdCodec`, `ZstdCodec`, `BrotliCodec`, `Lz4Codec`) and their streaming counterparts (`PpmdStream`, `ZstdStream`, `ZevenBrotliStream`, `Lz4Stream`) all use the same chunked wire format. This format is **not** compatible with 7z.exe or the .7z archive format.
+
+> **Note:** The streaming Brotli class is named `ZevenBrotliStream` to avoid collision with `System.IO.Compression.BrotliStream`.
 
 ### Why chunking?
 
-PPMd's 7-Zip encoder exposes only a batch `Code()` API — it reads all input and writes all output in a single blocking call. There is no incremental encoding interface. To provide a streaming `Write()` API (`PpmdStream`), data is buffered into fixed-size chunks (default 16 MB) and each chunk is compressed independently.
+Most 7-Zip encoders (PPMd, Zstd, Brotli, LZ4) expose only a batch `Code()` API — a single blocking call that reads all input and writes all output. There is no incremental encoding interface. To provide a streaming `Write()` API, data is buffered into fixed-size chunks (default 16 MB) and each chunk is compressed independently.
 
-PPMd also lacks end-of-stream markers in its bitstream — the decoder must be told the exact output size to know when to stop. The chunked format stores per-chunk sizes to provide this.
+Many codecs also lack end-of-stream markers — the decoder must be told the exact output size. The chunked format stores per-chunk sizes to provide this.
 
 ### Wire format
 
 ```
-Stream header:
-  [4 bytes magic: "ZPM\x01"]               Format identifier + version
-  [5 bytes property header]                 PPMd encoder properties
-  [4 bytes CRC32, LE]                       IEEE CRC-32 of property header
+Stream header (16 bytes fixed + N property + 4 CRC):
+  [4 bytes magic: "ZVN\x01"]               Zeven format v1
+  [4 bytes codec ID, LE]                   7-Zip codec ID (e.g., 0x030401 = PPMd)
+  [2 bytes property header length, LE]     Size of property data
+  [6 bytes reserved, zero]                 Future use
+  [N bytes property header]                Codec-specific properties
+  [4 bytes CRC32, LE]                      IEEE CRC-32 of property header
 
 Per chunk:
   [8 bytes uncompressed size, LE]           Original data size (must be > 0)
@@ -222,21 +227,22 @@ CRC algorithm: IEEE CRC-32 (polynomial `0x04C11DB7`, reflected, init `0xFFFFFFFF
 ### Chunk size configuration
 
 ```csharp
-// Default: 16 MB chunks
-var stream = new PpmdStream(output, CompressionMode.Compress);
+// Default: 16 MB chunks (works for any codec)
+var stream = new ZstdStream(output, CompressionMode.Compress);
 
 // Custom chunk size (e.g., 1 MB)
-var options = new PpmdOptions { ChunkSize = 1 * 1024 * 1024 };
-var stream = new PpmdStream(output, CompressionMode.Compress, options);
+var options = new ZstdOptions { ChunkSize = 1 * 1024 * 1024 };
+var stream = new ZstdStream(output, CompressionMode.Compress, options);
 
-// PpmdCodec always writes a single chunk (entire input)
-PpmdCodec.Compress(input, output);
+// Batch codecs always write a single chunk (entire input)
+ZstdCodec.Compress(input, output);
 ```
 
 ### Interoperability
 
-- `PpmdCodec` and `PpmdStream` produce identical wire formats — output from one can be read by the other.
-- This format is **not** compatible with 7z.exe. PPMd in .7z archives stores the uncompressed size in the archive header, not in the compressed stream. This library's format is a standalone chunked framing specific to Zeven.
+- Each codec's batch and streaming APIs produce identical wire formats — output from `ZstdCodec` can be read by `ZstdStream` and vice versa. Same for PPMd, Brotli, and LZ4.
+- Streams from different codecs are **not** interchangeable — the codec ID in the header identifies which codec produced the stream.
+- This format is **not** compatible with 7z.exe. Archives use `.7z` container metadata for sizes; this library uses standalone chunked framing.
 
 ## Implementation Notes
 
