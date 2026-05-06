@@ -3,4 +3,4 @@ obj/
 .idea/
 *.user
 
-*.etl
+BenchmarkDotNet.Artifacts/

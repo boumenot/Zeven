@@ -134,8 +134,8 @@ The **codecs** available inside `.7z` (and sometimes `.zip`) are:
 | Zstandard | ✅ | ✅ | `ZstdCodec` / `ZstdStream` | Via 7-Zip-zstd; chunked format |
 | Brotli | ✅ | ✅ | `BrotliCodec` / `BrotliStream` | Via 7-Zip-zstd; chunked format |
 | LZ4 | ✅ | ✅ | `Lz4Codec` / `Lz4Stream` | Via 7-Zip-zstd; chunked format |
-| LZ5 | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71105`) |
-| Lizard | ✅ | ✅ | — | Via 7-Zip-zstd (`0x4F71106`) |
+| LZ5 | ✅ | ✅ | — | Via 7-Zip-zstd; deprecated, use LZ4 |
+| Lizard | ✅ | ✅ | — | Via 7-Zip-zstd; deprecated, use Zstd |
 | Fast LZMA2 | ✅ | ✅ | — | Via 7-Zip-zstd (same ID as LZMA2) |
 
 The full list of read/write support is reported at runtime via `GetHandlerProperty2(kUpdate)` — see `ZevenLibrary.Formats`.
@@ -191,7 +191,7 @@ Key interface IIDs (all under `{23170F69-40C1-278A-0000-00ggnnss0000}`):
 
 ## Zeven Stream Format
 
-The following codecs have batch and streaming APIs that use the Zeven chunked wire format:
+All codecs share a common architecture via `ZevenStream<TOptions>` (generic base) and `ZevenCodec` (shared batch logic). Typed wrappers provide a discoverable API:
 
 | Batch API | Streaming API | Codec |
 |-----------|--------------|-------|
@@ -254,6 +254,16 @@ ZstdCodec.Compress(input, output);
 - Each codec's batch and streaming APIs produce identical wire formats — output from `ZstdCodec` can be read by `ZstdStream` and vice versa. Same for PPMd, Brotli, and LZ4.
 - Streams from different codecs are **not** interchangeable — the codec ID in the header identifies which codec produced the stream.
 - This format is **not** compatible with 7z.exe. Archives use `.7z` container metadata for sizes; this library uses standalone chunked framing.
+
+### Architecture
+
+All streaming classes inherit from `ZevenStream<TOptions>`, which handles chunk buffering, CRC integrity, and COM lifecycle. Typed wrappers (`PpmdStream`, `ZstdStream`, etc.) are thin sealed classes that forward constructors. Batch codecs delegate to `ZevenCodec`.
+
+The chunk buffer is rented from `ArrayPool<byte>` to avoid LOH allocations. Codec options are init-only to prevent mutation after construction.
+
+### Potential improvements
+
+- **LZMA2 zero-copy streaming compress** — LZMA2 is the only 7-Zip encoder that implements `ISequentialOutStream`, which would allow true push-based incremental compression without chunking or buffering. The current implementation uses chunking for consistency with the other codecs, but a future `Lzma2Stream` variant could leverage this for lower memory usage and latency on the compress path.
 
 ## Implementation Notes
 
