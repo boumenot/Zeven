@@ -6,6 +6,8 @@ No COM registration, no IDL, no type libraries — just P/Invoke `CreateObject` 
 
 ## Quick Start
 
+### Batch compress and decompress
+
 ```csharp
 using Zeven.Core;
 
@@ -20,6 +22,8 @@ compressed.Position = 0;
 using var decompressed = new MemoryStream();
 ZstdCodec.Decompress(compressed, decompressed);
 ```
+
+### Streaming compress and decompress
 
 ```csharp
 using System.IO.Compression;
@@ -36,6 +40,8 @@ using var decompressor = new ZstdStream(inputFile, CompressionMode.Decompress);
 decompressor.CopyTo(result);
 ```
 
+### Custom compression options
+
 ```csharp
 // Custom options
 var options = new ZstdOptions { Level = 9, ChunkSize = 4 * 1024 * 1024 };
@@ -44,7 +50,7 @@ using var compressor = new ZstdStream(output, CompressionMode.Compress, options)
 
 All codecs (LZMA2, PPMd, Zstd, Brotli, LZ4) follow the same API pattern — swap `Zstd` for any codec name.
 
-### Archive API
+### Create and extract a .7z archive
 
 ```csharp
 using Zeven.Core;
@@ -66,6 +72,8 @@ using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
 handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
 handle.ExtractTo(@"C:\output");
 ```
+
+### In-memory archives
 
 An in-memory API is also available for small archives:
 
