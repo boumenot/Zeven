@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
+using Zeven.Core;
 
 #pragma warning disable CS9191 // Marshal.QueryInterface takes ref Guid, not in Guid
 
@@ -126,6 +127,9 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
     private readonly IInArchive archive;
     private readonly StrategyBasedComWrappers comWrappers;
     private readonly string? password;
+    private readonly IProgress<ArchiveProgress>? progress;
+    private readonly CancellationToken cancellationToken;
+    private ulong totalBytes;
     private uint currentIndex;
     private MemoryStream? currentStream;
     private readonly List<object> liveObjects = new();
@@ -136,16 +140,42 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
     /// <summary>Failures collected during extraction.</summary>
     public List<ExtractionFailure> Failures { get; } = new();
 
-    public ExtractCallback(IInArchive archive, StrategyBasedComWrappers cw, string? password = null)
+    public ExtractCallback(IInArchive archive, StrategyBasedComWrappers cw,
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
         this.archive = archive;
         this.comWrappers = cw;
         this.password = password;
+        this.progress = progress;
+        this.cancellationToken = cancellationToken;
     }
 
     // IProgress
-    public int SetTotal(ulong total) => 0;
-    public int SetCompleted(nint completeValue) => 0;
+    public int SetTotal(ulong total)
+    {
+        this.totalBytes = total;
+        return 0;
+    }
+
+    public int SetCompleted(nint completeValue)
+    {
+        if (this.cancellationToken.IsCancellationRequested)
+        {
+            return unchecked((int)0x80004004); // E_ABORT
+        }
+
+        if (this.progress != null && completeValue != nint.Zero)
+        {
+            unsafe
+            {
+                ulong completed = *(ulong*)completeValue;
+                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
+            }
+        }
+        return 0;
+    }
 
     // IArchiveExtractCallback
     public int GetStream(uint index, out nint outStream, int askExtractMode)
@@ -223,18 +253,47 @@ public partial class UpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPass
     private readonly List<(string Path, byte[] Data)> items;
     private readonly StrategyBasedComWrappers comWrappers;
     private readonly string? password;
+    private readonly IProgress<ArchiveProgress>? progress;
+    private readonly CancellationToken cancellationToken;
+    private ulong totalBytes;
     private readonly List<object> liveObjects = new();
 
-    public UpdateCallback(Dictionary<string, byte[]> files, StrategyBasedComWrappers cw, string? password = null)
+    public UpdateCallback(Dictionary<string, byte[]> files, StrategyBasedComWrappers cw,
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
         this.items = files.Select(kv => (kv.Key, kv.Value)).ToList();
         this.comWrappers = cw;
         this.password = password;
+        this.progress = progress;
+        this.cancellationToken = cancellationToken;
     }
 
     // IProgress
-    public int SetTotal(ulong total) => 0;
-    public int SetCompleted(nint completeValue) => 0;
+    public int SetTotal(ulong total)
+    {
+        this.totalBytes = total;
+        return 0;
+    }
+
+    public int SetCompleted(nint completeValue)
+    {
+        if (this.cancellationToken.IsCancellationRequested)
+        {
+            return unchecked((int)0x80004004); // E_ABORT
+        }
+
+        if (this.progress != null && completeValue != nint.Zero)
+        {
+            unsafe
+            {
+                ulong completed = *(ulong*)completeValue;
+                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
+            }
+        }
+        return 0;
+    }
 
     public int GetUpdateItemInfo(uint index, out int newData, out int newProps, out uint indexInArchive)
     {
@@ -321,20 +380,48 @@ public partial class FileUpdateCallback : IArchiveUpdateCallback, ICryptoGetText
     private readonly List<(string ArchiveName, string FilePath)> items;
     private readonly StrategyBasedComWrappers comWrappers;
     private readonly string? password;
+    private readonly IProgress<ArchiveProgress>? progress;
+    private readonly CancellationToken cancellationToken;
+    private ulong totalBytes;
     private readonly List<object> liveObjects = new();
     private FileStream? currentFileStream;
 
     public FileUpdateCallback(Dictionary<string, string> files, StrategyBasedComWrappers cw,
-            string? password = null)
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
         this.items = files.Select(kv => (kv.Key, kv.Value)).ToList();
         this.comWrappers = cw;
         this.password = password;
+        this.progress = progress;
+        this.cancellationToken = cancellationToken;
     }
 
     // IProgress
-    public int SetTotal(ulong total) => 0;
-    public int SetCompleted(nint completeValue) => 0;
+    public int SetTotal(ulong total)
+    {
+        this.totalBytes = total;
+        return 0;
+    }
+
+    public int SetCompleted(nint completeValue)
+    {
+        if (this.cancellationToken.IsCancellationRequested)
+        {
+            return unchecked((int)0x80004004); // E_ABORT
+        }
+
+        if (this.progress != null && completeValue != nint.Zero)
+        {
+            unsafe
+            {
+                ulong completed = *(ulong*)completeValue;
+                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
+            }
+        }
+        return 0;
+    }
 
     public int GetUpdateItemInfo(uint index, out int newData, out int newProps, out uint indexInArchive)
     {
@@ -439,6 +526,9 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
     private readonly StrategyBasedComWrappers comWrappers;
     private readonly string baseDirectory;
     private readonly string? password;
+    private readonly IProgress<ArchiveProgress>? progress;
+    private readonly CancellationToken cancellationToken;
+    private ulong totalBytes;
     private uint currentIndex;
     private FileStream? currentFileStream;
     private readonly List<object> liveObjects = new();
@@ -447,17 +537,42 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
     public List<ExtractionFailure> Failures { get; } = new();
 
     public DirectoryExtractCallback(IInArchive archive, StrategyBasedComWrappers cw,
-            string baseDirectory, string? password = null)
+            string baseDirectory, string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
         this.archive = archive;
         this.comWrappers = cw;
         this.baseDirectory = Path.GetFullPath(baseDirectory) + Path.DirectorySeparatorChar;
         this.password = password;
+        this.progress = progress;
+        this.cancellationToken = cancellationToken;
     }
 
     // IProgress
-    public int SetTotal(ulong total) => 0;
-    public int SetCompleted(nint completeValue) => 0;
+    public int SetTotal(ulong total)
+    {
+        this.totalBytes = total;
+        return 0;
+    }
+
+    public int SetCompleted(nint completeValue)
+    {
+        if (this.cancellationToken.IsCancellationRequested)
+        {
+            return unchecked((int)0x80004004); // E_ABORT
+        }
+
+        if (this.progress != null && completeValue != nint.Zero)
+        {
+            unsafe
+            {
+                ulong completed = *(ulong*)completeValue;
+                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
+            }
+        }
+        return 0;
+    }
 
     // IArchiveExtractCallback
     public int GetStream(uint index, out nint outStream, int askExtractMode)

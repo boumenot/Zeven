@@ -145,7 +145,9 @@ public sealed class ZevenLibrary : IDisposable
     /// <summary>Create a .7z archive from in-memory file data.</summary>
     public void CreateArchive(Guid classId, Stream outputStream,
             Dictionary<string, byte[]> files, IArchiveCreateOptions? options = null,
-            string? password = null)
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
         Guid iid = Iid.IOutArchive;
         int hr = this.createObject(in classId, in iid, out nint ptr);
@@ -156,7 +158,8 @@ public sealed class ZevenLibrary : IDisposable
         var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
 
         var outWrapper = new OutStreamWrapper(outputStream);
-        var updateCallback = new UpdateCallback(files, this.comWrappers, password);
+        var updateCallback = new UpdateCallback(files, this.comWrappers, password,
+                progress, cancellationToken);
 
         nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
         Guid iidOutStream = Iid.IOutStream;
@@ -175,13 +178,22 @@ public sealed class ZevenLibrary : IDisposable
         GC.KeepAlive(outWrapper);
         GC.KeepAlive(updateCallback);
 
-        Marshal.ThrowExceptionForHR(hr);
+        try
+        {
+            Marshal.ThrowExceptionForHR(hr);
+        }
+        catch (COMException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
     /// <summary>Create an archive from files on disk. Files are streamed — not loaded into memory.</summary>
     public void CreateArchive(Guid classId, Stream outputStream,
             Dictionary<string, string> files, IArchiveCreateOptions? options = null,
-            string? password = null)
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
         Guid iid = Iid.IOutArchive;
         int hr = this.createObject(in classId, in iid, out nint ptr);
@@ -192,7 +204,8 @@ public sealed class ZevenLibrary : IDisposable
         var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
 
         var outWrapper = new OutStreamWrapper(outputStream);
-        var updateCallback = new FileUpdateCallback(files, this.comWrappers, password);
+        var updateCallback = new FileUpdateCallback(files, this.comWrappers, password,
+                progress, cancellationToken);
 
         nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
         Guid iidOutStream = Iid.IOutStream;
@@ -211,37 +224,58 @@ public sealed class ZevenLibrary : IDisposable
         GC.KeepAlive(outWrapper);
         GC.KeepAlive(updateCallback);
 
-        Marshal.ThrowExceptionForHR(hr);
+        try
+        {
+            Marshal.ThrowExceptionForHR(hr);
+        }
+        catch (COMException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
     /// <summary>Create an archive from in-memory file data by format name (e.g., "7z", "Zip", "Tar").</summary>
     public void CreateArchive(string formatName, Stream outputStream,
-            Dictionary<string, byte[]> files, string? password = null)
+            Dictionary<string, byte[]> files, string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
-        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, password: password);
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files,
+                password: password, progress: progress,
+                cancellationToken: cancellationToken);
     }
 
     /// <summary>Create an archive from files on disk by format name (e.g., "7z", "Zip", "Tar").</summary>
     public void CreateArchive(string formatName, Stream outputStream,
-            Dictionary<string, string> files, string? password = null)
+            Dictionary<string, string> files, string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
-        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, password: password);
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files,
+                password: password, progress: progress,
+                cancellationToken: cancellationToken);
     }
 
     /// <summary>Create an archive from in-memory file data by format name with compression options.</summary>
     public void CreateArchive(string formatName, Stream outputStream,
             Dictionary<string, byte[]> files, IArchiveCreateOptions options,
-            string? password = null)
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
-        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, options, password);
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files,
+                options, password, progress, cancellationToken);
     }
 
     /// <summary>Create an archive from files on disk by format name with compression options.</summary>
     public void CreateArchive(string formatName, Stream outputStream,
             Dictionary<string, string> files, IArchiveCreateOptions options,
-            string? password = null)
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
-        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, options, password);
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files,
+                options, password, progress, cancellationToken);
     }
 
     private Guid ResolveFormat(string formatName)
@@ -385,10 +419,14 @@ public sealed class ArchiveHandle : IDisposable
     private bool disposed;
 
     /// <summary>Extract all files to memory. Returns dict of path → byte[].</summary>
-    public Dictionary<string, byte[]> ExtractAll()
+    public Dictionary<string, byte[]> ExtractAll(
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
-        var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
-        this.CallExtract(null, 0, callback);
+        var callback = new ExtractCallback(
+                this.Archive, this.ComWrappers, this.password,
+                progress, cancellationToken);
+        this.CallExtract(null, 0, callback, cancellationToken);
 
         if (callback.Failures.Count > 0)
         {
@@ -414,10 +452,14 @@ public sealed class ArchiveHandle : IDisposable
     }
 
     /// <summary>Extract specific items by index. Returns dict of index → byte[].</summary>
-    public Dictionary<uint, byte[]> Extract(uint[] indices)
+    public Dictionary<uint, byte[]> Extract(uint[] indices,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
-        var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
-        this.CallExtract(indices, 0, callback);
+        var callback = new ExtractCallback(
+                this.Archive, this.ComWrappers, this.password,
+                progress, cancellationToken);
+        this.CallExtract(indices, 0, callback, cancellationToken);
 
         if (callback.Failures.Count > 0)
         {
@@ -428,11 +470,14 @@ public sealed class ArchiveHandle : IDisposable
     }
 
     /// <summary>Test archive integrity (extract in verify-only mode).</summary>
-    public void Test()
+    public void Test(IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
-        var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
+        var callback = new ExtractCallback(
+                this.Archive, this.ComWrappers, this.password,
+                progress, cancellationToken);
         // numItems = 0xFFFFFFFF means "all", testMode = 1
-        this.CallExtract(null, 1, callback);
+        this.CallExtract(null, 1, callback, cancellationToken);
 
         if (callback.Failures.Count > 0)
         {
@@ -441,12 +486,15 @@ public sealed class ArchiveHandle : IDisposable
     }
 
     /// <summary>Extract all files to the specified directory. Creates subdirectories as needed.</summary>
-    public void ExtractTo(string directory)
+    public void ExtractTo(string directory,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(directory);
 
         var callback = new DirectoryExtractCallback(
-                this.Archive, this.ComWrappers, directory, this.password);
+                this.Archive, this.ComWrappers, directory, this.password,
+                progress, cancellationToken);
 
         var cw = this.ComWrappers;
         nint callbackCcw = cw.GetOrCreateComInterfaceForObject(callback, CreateComInterfaceFlags.None);
@@ -458,7 +506,15 @@ public sealed class ArchiveHandle : IDisposable
         if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
         Marshal.Release(callbackCcw);
         GC.KeepAlive(callback);
-        Marshal.ThrowExceptionForHR(hr);
+
+        try
+        {
+            Marshal.ThrowExceptionForHR(hr);
+        }
+        catch (COMException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
 
         if (callback.Failures.Count > 0)
         {
@@ -466,7 +522,8 @@ public sealed class ArchiveHandle : IDisposable
         }
     }
 
-    private void CallExtract(uint[]? indices, int testMode, ExtractCallback callback)
+    private void CallExtract(uint[]? indices, int testMode, ExtractCallback callback,
+            CancellationToken cancellationToken)
     {
         var cw = this.ComWrappers;
         nint callbackCcw = cw.GetOrCreateComInterfaceForObject(callback, CreateComInterfaceFlags.None);
@@ -500,7 +557,15 @@ public sealed class ArchiveHandle : IDisposable
         if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
         Marshal.Release(callbackCcw);
         GC.KeepAlive(callback);
-        Marshal.ThrowExceptionForHR(hr);
+
+        try
+        {
+            Marshal.ThrowExceptionForHR(hr);
+        }
+        catch (COMException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
     }
 
     private List<ArchiveEntry> LoadEntries()
