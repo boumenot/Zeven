@@ -65,10 +65,10 @@ var files = new Dictionary<string, string>
 };
 
 using var archive = File.Create(@"C:\docs\backup.7z");
-lib.CreateArchive(FormatClsid.SevenZip, archive, files);
+lib.CreateArchive("7z", archive, files);
 
 // Extract to a directory
-using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
+using var handle = lib.CreateInArchive("7z");
 handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
 handle.ExtractTo(@"C:\output");
 ```
@@ -83,7 +83,7 @@ var files = new Dictionary<string, byte[]>
 {
     ["hello.txt"] = "Hello, World!"u8.ToArray(),
 };
-lib.CreateArchive(FormatClsid.SevenZip, output, files);
+lib.CreateArchive("7z", output, files);
 
 // Extract to memory
 var extracted = handle.ExtractAll(); // Dictionary<uint, byte[]>
@@ -95,7 +95,6 @@ Tar + Zstd is a two-step process: create the tar container, then compress with Z
 
 ```csharp
 using Zeven.Core;
-using Zeven.Core.Interop;
 
 var lib = ZevenLibrary.Load(@"path\to\7z.dll");
 
@@ -107,7 +106,7 @@ var files = new Dictionary<string, string>
 };
 
 using var tarStream = new MemoryStream();
-lib.CreateArchive(FormatClsid.Tar, tarStream, files);
+lib.CreateArchive("Tar", tarStream, files);
 
 // Step 2: Compress with Zstd
 tarStream.Position = 0;
@@ -125,7 +124,7 @@ ZstdCodec.Decompress(zstInput, tarStream);
 
 // Step 2: Extract tar
 tarStream.Position = 0;
-using var handle = lib.CreateInArchive(FormatClsid.Tar);
+using var handle = lib.CreateInArchive("Tar");
 handle.Open(tarStream);
 handle.ExtractTo(@"C:\output");
 ```
@@ -136,7 +135,7 @@ handle.ExtractTo(@"C:\output");
 using Zeven.Core;
 
 var lib = ZevenLibrary.Load(@"path\to\7z.dll");
-using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
+using var handle = lib.CreateInArchive("7z");
 handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
 
 // List all entries
