@@ -347,6 +347,24 @@ public class ArchiveCreateTests
     }
 
     [Fact]
+    public void CreateArchive_BZip2WithNumPasses_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var data = System.Text.Encoding.UTF8.GetBytes("Hello bzip2 passes test " + new string('p', 1000));
+        var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("bzip2", ms, files, new BZip2CreateOptions { NumPasses = 7 });
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("bzip2");
+        handle.Open(ms);
+        var extracted = handle.ExtractAll();
+        Assert.Single(extracted);
+        Assert.Equal(data, extracted.Values.First());
+    }
+
+    [Fact]
     public void CreateArchive_BrotliWithLevel_RoundTrips()
     {
         using var lib = ZevenLibrary.Load(DllPath);
