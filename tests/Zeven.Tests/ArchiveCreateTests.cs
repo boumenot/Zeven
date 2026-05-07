@@ -320,4 +320,137 @@ public class ArchiveCreateTests
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
     }
+
+    [Fact]
+    public void CreateArchive_BrotliWithLevel_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var data = System.Text.Encoding.UTF8.GetBytes("Hello brotli test " + new string('a', 1000));
+        var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("brotli", ms, files, new BrotliArchiveCreateOptions { Level = 9 });
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("brotli");
+        handle.Open(ms);
+        var extracted = handle.ExtractAll();
+        Assert.Single(extracted);
+        Assert.Equal(data, extracted["test.txt"]);
+    }
+
+    [Fact]
+    public void CreateArchive_BrotliWithNumThreads_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["test.txt"] = new byte[10000],
+        };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("brotli", ms, files, new BrotliArchiveCreateOptions { NumThreads = 1 });
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("brotli");
+        handle.Open(ms);
+        var extracted = handle.ExtractAll();
+        Assert.Single(extracted);
+        Assert.Equal(files["test.txt"], extracted["test.txt"]);
+    }
+
+    [Fact]
+    public void CreateArchive_Lz4WithLevel_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var data = System.Text.Encoding.UTF8.GetBytes("Hello lz4 test " + new string('b', 1000));
+        var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("lz4", ms, files, new Lz4ArchiveCreateOptions { Level = 9 });
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("lz4");
+        handle.Open(ms);
+        var extracted = handle.ExtractAll();
+        Assert.Single(extracted);
+        Assert.Equal(data, extracted["test.txt"]);
+    }
+
+    [Fact]
+    public void CreateArchive_Lz4WithNumThreads_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["test.txt"] = new byte[10000],
+        };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("lz4", ms, files, new Lz4ArchiveCreateOptions { NumThreads = 1 });
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("lz4");
+        handle.Open(ms);
+        var extracted = handle.ExtractAll();
+        Assert.Single(extracted);
+        Assert.Equal(files["test.txt"], extracted["test.txt"]);
+    }
+
+    [Fact]
+    public void CreateArchive_ZipWithLevel_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var data = System.Text.Encoding.UTF8.GetBytes("Hello zip test " + new string('c', 1000));
+        var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
+
+        var zipFormat = lib.Formats.First(f => f.Name == "Zip");
+        using var ms = new MemoryStream();
+        lib.CreateArchive(zipFormat.Name, ms, files, new ZipCreateOptions { Level = 9 });
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive(zipFormat.Name);
+        handle.Open(ms);
+        var extracted = handle.ExtractAll();
+        Assert.Single(extracted);
+        Assert.Equal(data, extracted["test.txt"]);
+    }
+
+    [Fact]
+    public void CreateArchive_ZipWithMethod_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var data = System.Text.Encoding.UTF8.GetBytes("Hello zip deflate test " + new string('d', 1000));
+        var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
+
+        var zipFormat = lib.Formats.First(f => f.Name == "Zip");
+        using var ms = new MemoryStream();
+        lib.CreateArchive(zipFormat.Name, ms, files, new ZipCreateOptions { Method = "Deflate" });
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive(zipFormat.Name);
+        handle.Open(ms);
+        var extracted = handle.ExtractAll();
+        Assert.Single(extracted);
+        Assert.Equal(data, extracted["test.txt"]);
+    }
+
+    [Fact]
+    public void CreateArchive_XzLevelComparison()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var rng = new Random(42);
+        var data = new byte[100_000];
+        rng.NextBytes(data);
+        var files = new Dictionary<string, byte[]> { ["data.bin"] = data };
+
+        using var fast = new MemoryStream();
+        lib.CreateArchive("xz", fast, files, new XzCreateOptions { Level = 1, NumThreads = 1 });
+
+        using var ultra = new MemoryStream();
+        lib.CreateArchive("xz", ultra, files, new XzCreateOptions { Level = 9, NumThreads = 1 });
+
+        Assert.True(ultra.Length <= fast.Length,
+            $"Level 9 ({ultra.Length}) should be <= level 1 ({fast.Length})");
+    }
 }
