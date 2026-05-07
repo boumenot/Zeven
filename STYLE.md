@@ -77,3 +77,7 @@ This applies inside instance methods and constructors. It does **not** apply to:
 - Static members (use the class name or no prefix)
 - Local variables and parameters
 - Base class calls (`base.Method()`)
+
+## File Naming
+
+When a file contains a single type, the filename must match the type name (e.g., `ZevenStream.cs` for `ZevenStream<TOptions>`, `IArchiveCreateOptions.cs` for `IArchiveCreateOptions`).
