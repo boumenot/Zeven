@@ -271,6 +271,31 @@ public class ArchiveCreateTests
     }
 
     [Fact]
+    public void CreateArchive_WithSolid_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["a.txt"] = System.Text.Encoding.UTF8.GetBytes("AAAA"),
+            ["b.txt"] = System.Text.Encoding.UTF8.GetBytes("BBBB"),
+            ["c.txt"] = System.Text.Encoding.UTF8.GetBytes("CCCC"),
+        };
+
+        using var solid = new MemoryStream();
+        lib.CreateArchive("7z", solid, files, new SevenZipCreateOptions { Solid = true });
+
+        using var nonSolid = new MemoryStream();
+        lib.CreateArchive("7z", nonSolid, files, new SevenZipCreateOptions { Solid = false });
+
+        // Both should round-trip correctly
+        solid.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(solid);
+        var extracted = handle.ExtractAll();
+        Assert.Equal(3, extracted.Count);
+    }
+
+    [Fact]
     public void CreateArchive_GZipWithLevel_RoundTrips()
     {
         using var lib = ZevenLibrary.Load(DllPath);
