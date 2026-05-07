@@ -44,6 +44,9 @@ public static class Iid
     public static readonly Guid IArchiveUpdateCallback  = new("23170F69-40C1-278A-0000-000600800000");
     public static readonly Guid IOutArchive             = new("23170F69-40C1-278A-0000-000600A00000");
 
+    // Property-setting interface (group 06)
+    public static readonly Guid ISetProperties = new("23170F69-40C1-278A-0000-000600030000");
+
     // Codec interfaces (group 04)
     public static readonly Guid ICompressCoder               = new("23170F69-40C1-278A-0000-000400050000");
     public static readonly Guid ICompressSetCoderProperties   = new("23170F69-40C1-278A-0000-000400200000");

@@ -143,11 +143,15 @@ public sealed class ZevenLibrary : IDisposable
     }
 
     /// <summary>Create a .7z archive from in-memory file data.</summary>
-    public void CreateArchive(Guid classId, Stream outputStream, Dictionary<string, byte[]> files, string? password = null)
+    public void CreateArchive(Guid classId, Stream outputStream,
+            Dictionary<string, byte[]> files, IArchiveCreateOptions? options = null,
+            string? password = null)
     {
         Guid iid = Iid.IOutArchive;
         int hr = this.createObject(in classId, in iid, out nint ptr);
         Marshal.ThrowExceptionForHR(hr);
+
+        options?.Apply(ptr, this.comWrappers);
 
         var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
 
@@ -176,11 +180,14 @@ public sealed class ZevenLibrary : IDisposable
 
     /// <summary>Create an archive from files on disk. Files are streamed — not loaded into memory.</summary>
     public void CreateArchive(Guid classId, Stream outputStream,
-            Dictionary<string, string> files, string? password = null)
+            Dictionary<string, string> files, IArchiveCreateOptions? options = null,
+            string? password = null)
     {
         Guid iid = Iid.IOutArchive;
         int hr = this.createObject(in classId, in iid, out nint ptr);
         Marshal.ThrowExceptionForHR(hr);
+
+        options?.Apply(ptr, this.comWrappers);
 
         var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
 
@@ -211,14 +218,30 @@ public sealed class ZevenLibrary : IDisposable
     public void CreateArchive(string formatName, Stream outputStream,
             Dictionary<string, byte[]> files, string? password = null)
     {
-        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, password);
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, password: password);
     }
 
     /// <summary>Create an archive from files on disk by format name (e.g., "7z", "Zip", "Tar").</summary>
     public void CreateArchive(string formatName, Stream outputStream,
             Dictionary<string, string> files, string? password = null)
     {
-        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, password);
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, password: password);
+    }
+
+    /// <summary>Create an archive from in-memory file data by format name with compression options.</summary>
+    public void CreateArchive(string formatName, Stream outputStream,
+            Dictionary<string, byte[]> files, IArchiveCreateOptions options,
+            string? password = null)
+    {
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, options, password);
+    }
+
+    /// <summary>Create an archive from files on disk by format name with compression options.</summary>
+    public void CreateArchive(string formatName, Stream outputStream,
+            Dictionary<string, string> files, IArchiveCreateOptions options,
+            string? password = null)
+    {
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, options, password);
     }
 
     private Guid ResolveFormat(string formatName)
