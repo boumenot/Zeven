@@ -133,6 +133,9 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
     /// <summary>Extracted data keyed by archive item index.</summary>
     public Dictionary<uint, byte[]> ExtractedData { get; } = new();
 
+    /// <summary>Failures collected during extraction.</summary>
+    public List<ExtractionFailure> Failures { get; } = new();
+
     public ExtractCallback(IInArchive archive, StrategyBasedComWrappers cw, string? password = null)
     {
         this.archive = archive;
@@ -183,7 +186,6 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
     {
         if (this.currentStream != null)
         {
-            // opRes == 0 means kOK; non-zero means error (CRC, wrong password, etc.)
             if (opRes == 0)
             {
                 this.ExtractedData[this.currentIndex] = this.currentStream.ToArray();
@@ -191,6 +193,12 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
             this.currentStream.Dispose();
             this.currentStream = null;
         }
+
+        if (opRes != 0)
+        {
+            this.Failures.Add(new ExtractionFailure(this.currentIndex, (ExtractionResult)opRes));
+        }
+
         return 0;
     }
 
@@ -431,8 +439,12 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
     private readonly StrategyBasedComWrappers comWrappers;
     private readonly string baseDirectory;
     private readonly string? password;
+    private uint currentIndex;
     private FileStream? currentFileStream;
     private readonly List<object> liveObjects = new();
+
+    /// <summary>Failures collected during extraction.</summary>
+    public List<ExtractionFailure> Failures { get; } = new();
 
     public DirectoryExtractCallback(IInArchive archive, StrategyBasedComWrappers cw,
             string baseDirectory, string? password = null)
@@ -450,6 +462,7 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
     // IArchiveExtractCallback
     public int GetStream(uint index, out nint outStream, int askExtractMode)
     {
+        this.currentIndex = index;
         this.currentFileStream = null;
         outStream = nint.Zero;
 
@@ -510,6 +523,12 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
             this.currentFileStream.Dispose();
             this.currentFileStream = null;
         }
+
+        if (opRes != 0)
+        {
+            this.Failures.Add(new ExtractionFailure(this.currentIndex, (ExtractionResult)opRes));
+        }
+
         return 0;
     }
 

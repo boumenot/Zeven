@@ -72,4 +72,77 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
 
         // If we get here without exception, the archive is valid
     }
+
+    [Fact]
+    public void Extract_UnsortedIndices_StillWorks()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["a.txt"] = System.Text.Encoding.UTF8.GetBytes("AAA"),
+            ["b.txt"] = System.Text.Encoding.UTF8.GetBytes("BBB"),
+            ["c.txt"] = System.Text.Encoding.UTF8.GetBytes("CCC"),
+        };
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files);
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(ms);
+
+        // Pass indices in reverse order
+        var data = handle.Extract([2, 0]);
+        Assert.Equal(2, data.Count);
+        Assert.True(data.ContainsKey(2));
+        Assert.True(data.ContainsKey(0));
+    }
+
+    [Fact]
+    public void ExtractAll_ValidArchive_NoExceptions()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["test.txt"] = System.Text.Encoding.UTF8.GetBytes("hello"),
+        };
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files);
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(ms);
+
+        var extracted = handle.ExtractAll();
+        Assert.Single(extracted);
+    }
+
+    [Fact]
+    public void ExtractionResult_Enum_HasExpectedValues()
+    {
+        Assert.Equal(0, (int)ExtractionResult.OK);
+        Assert.Equal(2, (int)ExtractionResult.DataError);
+        Assert.Equal(3, (int)ExtractionResult.CrcError);
+        Assert.Equal(9, (int)ExtractionResult.WrongPassword);
+    }
+
+    [Fact]
+    public void ArchiveExtractionException_SingleFailure_HasMessage()
+    {
+        var failures = new List<ExtractionFailure> { new(0, ExtractionResult.CrcError) };
+        var ex = new ArchiveExtractionException(failures);
+        Assert.Contains("CrcError", ex.Message);
+        Assert.Single(ex.Failures);
+    }
+
+    [Fact]
+    public void ArchiveExtractionException_MultipleFailures_HasCount()
+    {
+        var failures = new List<ExtractionFailure>
+        {
+            new(0, ExtractionResult.CrcError),
+            new(1, ExtractionResult.DataError),
+        };
+        var ex = new ArchiveExtractionException(failures);
+        Assert.Contains("2 entries", ex.Message);
+    }
 }

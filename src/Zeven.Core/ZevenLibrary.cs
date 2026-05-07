@@ -367,6 +367,11 @@ public sealed class ArchiveHandle : IDisposable
         var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
         this.CallExtract(null, 0, callback);
 
+        if (callback.Failures.Count > 0)
+        {
+            throw new ArchiveExtractionException(callback.Failures);
+        }
+
         // Map index→bytes to path→bytes
         this.Archive.GetNumberOfItems(out uint count);
         var result = new Dictionary<string, byte[]>();
@@ -390,6 +395,12 @@ public sealed class ArchiveHandle : IDisposable
     {
         var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
         this.CallExtract(indices, 0, callback);
+
+        if (callback.Failures.Count > 0)
+        {
+            throw new ArchiveExtractionException(callback.Failures);
+        }
+
         return callback.ExtractedData;
     }
 
@@ -399,6 +410,11 @@ public sealed class ArchiveHandle : IDisposable
         var callback = new ExtractCallback(this.Archive, this.ComWrappers, this.password);
         // numItems = 0xFFFFFFFF means "all", testMode = 1
         this.CallExtract(null, 1, callback);
+
+        if (callback.Failures.Count > 0)
+        {
+            throw new ArchiveExtractionException(callback.Failures);
+        }
     }
 
     /// <summary>Extract all files to the specified directory. Creates subdirectories as needed.</summary>
@@ -420,6 +436,11 @@ public sealed class ArchiveHandle : IDisposable
         Marshal.Release(callbackCcw);
         GC.KeepAlive(callback);
         Marshal.ThrowExceptionForHR(hr);
+
+        if (callback.Failures.Count > 0)
+        {
+            throw new ArchiveExtractionException(callback.Failures);
+        }
     }
 
     private void CallExtract(uint[]? indices, int testMode, ExtractCallback callback)
@@ -437,11 +458,18 @@ public sealed class ArchiveHandle : IDisposable
         }
         else
         {
+            // Sort a copy — 7-Zip requires indices in ascending order.
+            // In solid archives, unsorted indices force the decoder to restart
+            // decompression from the beginning, causing severe performance
+            // degradation or incorrect results.
+            var sorted = (uint[])indices.Clone();
+            Array.Sort(sorted);
+
             unsafe
             {
-                fixed (uint* pIndices = indices)
+                fixed (uint* pIndices = sorted)
                 {
-                    hr = this.Archive.Extract((nint)pIndices, (uint)indices.Length, testMode, callbackPtr);
+                    hr = this.Archive.Extract((nint)pIndices, (uint)sorted.Length, testMode, callbackPtr);
                 }
             }
         }

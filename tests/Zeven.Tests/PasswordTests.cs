@@ -57,8 +57,8 @@ public class PasswordTests
         using var inStream = new MemoryStream(archiveBytes);
         handle.Open(inStream, password: "wrong");
 
-        // With wrong password, extraction produces no data (items have errors)
-        var extracted = handle.ExtractAll();
-        Assert.Empty(extracted);
+        // With wrong password, extraction now throws ArchiveExtractionException
+        var ex = Assert.Throws<ArchiveExtractionException>(() => handle.ExtractAll());
+        Assert.All(ex.Failures, f => Assert.NotEqual(ExtractionResult.OK, f.Result));
     }
 }
