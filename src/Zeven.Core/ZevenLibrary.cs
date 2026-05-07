@@ -98,6 +98,12 @@ public sealed class ZevenLibrary : IDisposable
         return new ArchiveHandle(archive, this.comWrappers);
     }
 
+    /// <summary>Create an IInArchive COM object by format name (e.g., "7z", "Zip", "Tar").</summary>
+    public ArchiveHandle CreateInArchive(string formatName)
+    {
+        return this.CreateInArchive(this.ResolveFormat(formatName));
+    }
+
     public StrategyBasedComWrappers ComWrappers => this.comWrappers;
 
     /// <summary>Find the index of a codec by its 7-Zip codec ID (e.g., 0x21 for LZMA2).</summary>
@@ -199,6 +205,31 @@ public sealed class ZevenLibrary : IDisposable
         GC.KeepAlive(updateCallback);
 
         Marshal.ThrowExceptionForHR(hr);
+    }
+
+    /// <summary>Create an archive from in-memory file data by format name (e.g., "7z", "Zip", "Tar").</summary>
+    public void CreateArchive(string formatName, Stream outputStream,
+            Dictionary<string, byte[]> files, string? password = null)
+    {
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, password);
+    }
+
+    /// <summary>Create an archive from files on disk by format name (e.g., "7z", "Zip", "Tar").</summary>
+    public void CreateArchive(string formatName, Stream outputStream,
+            Dictionary<string, string> files, string? password = null)
+    {
+        this.CreateArchive(this.ResolveFormat(formatName), outputStream, files, password);
+    }
+
+    private Guid ResolveFormat(string formatName)
+    {
+        var format = this.Formats.FirstOrDefault(f =>
+            f.Name.Equals(formatName, StringComparison.OrdinalIgnoreCase));
+        if (format == null)
+        {
+            throw new ArgumentException($"Unknown archive format: '{formatName}'.", nameof(formatName));
+        }
+        return format.ClassId;
     }
 
     private static List<ArchiveFormat> LoadFormats(
