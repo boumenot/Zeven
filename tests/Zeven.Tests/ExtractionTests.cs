@@ -145,4 +145,24 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         var ex = new ArchiveExtractionException(failures);
         Assert.Contains("2 entries", ex.Message);
     }
+
+    [Fact]
+    public void Test_WrongPassword_ThrowsExtractionException()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["secret.txt"] = System.Text.Encoding.UTF8.GetBytes("classified"),
+        };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files, password: "correct");
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(ms, password: "wrong");
+
+        var ex = Assert.Throws<ArchiveExtractionException>(() => handle.Test());
+        Assert.NotEmpty(ex.Failures);
+    }
 }
