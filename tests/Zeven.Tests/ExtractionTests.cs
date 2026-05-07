@@ -165,4 +165,72 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         var ex = Assert.Throws<ArchiveExtractionException>(() => handle.Test());
         Assert.NotEmpty(ex.Failures);
     }
+
+    [Fact]
+    public void ExtractAll_WrongPassword_ThrowsExtractionException()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["secret.txt"] = System.Text.Encoding.UTF8.GetBytes("classified"),
+        };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files, password: "correct");
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(ms, password: "wrong");
+
+        var ex = Assert.Throws<ArchiveExtractionException>(() => handle.ExtractAll());
+        Assert.NotEmpty(ex.Failures);
+    }
+
+    [Fact]
+    public void Extract_WrongPassword_ThrowsExtractionException()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["secret.txt"] = System.Text.Encoding.UTF8.GetBytes("classified"),
+        };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files, password: "correct");
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(ms, password: "wrong");
+
+        var ex = Assert.Throws<ArchiveExtractionException>(() => handle.Extract([0]));
+        Assert.NotEmpty(ex.Failures);
+    }
+
+    [Fact]
+    public void ExtractTo_WrongPassword_ThrowsExtractionException()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["secret.txt"] = System.Text.Encoding.UTF8.GetBytes("classified"),
+        };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files, password: "correct");
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "zeven_test_" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            ms.Position = 0;
+            using var handle = lib.CreateInArchive("7z");
+            handle.Open(ms, password: "wrong");
+
+            var ex = Assert.Throws<ArchiveExtractionException>(() => handle.ExtractTo(tempDir));
+            Assert.NotEmpty(ex.Failures);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) { Directory.Delete(tempDir, true); }
+        }
+    }
 }
