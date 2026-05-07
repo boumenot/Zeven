@@ -7,7 +7,7 @@ namespace Zeven.Core;
 /// <summary>
 /// Shared marshaling logic for applying archive properties via ISetProperties.
 /// </summary>
-internal static class ArchiveOptionsHelper
+internal static class ArchiveOptions
 {
     public static void ApplyProperties(nint archivePtr, StrategyBasedComWrappers cw,
             List<(string Name, object Value)> props)

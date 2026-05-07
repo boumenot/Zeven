@@ -28,6 +28,6 @@ public class SevenZipCreateOptions : IArchiveCreateOptions
         if (this.Solid.HasValue) { props.Add(("s", this.Solid.Value)); }
         if (this.NumThreads.HasValue) { props.Add(("mt", (uint)this.NumThreads.Value)); }
         if (this.EncryptHeaders.HasValue) { props.Add(("he", this.EncryptHeaders.Value)); }
-        ArchiveOptionsHelper.ApplyProperties(archivePtr, cw, props);
+        ArchiveOptions.ApplyProperties(archivePtr, cw, props);
     }
 }

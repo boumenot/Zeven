@@ -12,6 +12,6 @@ public class GZipCreateOptions : IArchiveCreateOptions
         {
                 var props = new List<(string Name, object Value)>();
                 if (this.Level.HasValue) { props.Add(("x", (uint)this.Level.Value)); }
-                ArchiveOptionsHelper.ApplyProperties(archivePtr, cw, props);
+                ArchiveOptions.ApplyProperties(archivePtr, cw, props);
         }
 }

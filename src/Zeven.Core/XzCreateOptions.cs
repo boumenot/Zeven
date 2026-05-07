@@ -16,6 +16,6 @@ public class XzCreateOptions : IArchiveCreateOptions
                 var props = new List<(string Name, object Value)>();
                 if (this.Level.HasValue) { props.Add(("x", (uint)this.Level.Value)); }
                 if (this.NumThreads.HasValue) { props.Add(("mt", (uint)this.NumThreads.Value)); }
-                ArchiveOptionsHelper.ApplyProperties(archivePtr, cw, props);
+                ArchiveOptions.ApplyProperties(archivePtr, cw, props);
         }
 }

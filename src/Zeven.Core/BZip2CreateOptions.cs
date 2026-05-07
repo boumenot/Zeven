@@ -16,6 +16,6 @@ public class BZip2CreateOptions : IArchiveCreateOptions
                 var props = new List<(string Name, object Value)>();
                 if (this.Level.HasValue) { props.Add(("x", (uint)this.Level.Value)); }
                 if (this.NumPasses.HasValue) { props.Add(("pass", (uint)this.NumPasses.Value)); }
-                ArchiveOptionsHelper.ApplyProperties(archivePtr, cw, props);
+                ArchiveOptions.ApplyProperties(archivePtr, cw, props);
         }
 }
