@@ -106,7 +106,7 @@ var files = new Dictionary<string, string>
 };
 
 using var tarStream = new MemoryStream();
-lib.CreateArchive("Tar", tarStream, files);
+lib.CreateArchive("tar", tarStream, files);
 
 // Step 2: Compress with Zstd
 tarStream.Position = 0;
@@ -124,7 +124,7 @@ ZstdCodec.Decompress(zstInput, tarStream);
 
 // Step 2: Extract tar
 tarStream.Position = 0;
-using var handle = lib.CreateInArchive("Tar");
+using var handle = lib.CreateInArchive("tar");
 handle.Open(tarStream);
 handle.ExtractTo(@"C:\output");
 ```
