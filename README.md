@@ -390,10 +390,6 @@ All streaming classes inherit from `ZevenStream<TOptions>`, which handles chunk 
 
 The chunk buffer is rented from `ArrayPool<byte>` to avoid LOH allocations. Codec options are init-only to prevent mutation after construction.
 
-### Potential improvements
-
-- **LZMA2 zero-copy streaming compress** — LZMA2 is the only 7-Zip encoder that implements `ISequentialOutStream`, which would allow true push-based incremental compression without chunking or buffering. The current implementation uses chunking for consistency with the other codecs, but a future `Lzma2Stream` variant could leverage this for lower memory usage and latency on the compress path.
-
 ## Implementation Notes
 
 ### Key Pitfalls
@@ -415,3 +411,15 @@ dotnet run
 ```
 
 Requires .NET 10 SDK and a copy of `7z.dll` (from 7-Zip installer) at the configured path.
+
+## TODO
+
+### Brotli
+
+The standalone Brotli archive handler does not forward the `mt` (multithreading) property via `ISetProperties`, even though the underlying Brotli codec supports `ICompressSetCoderMt`. As a result, `BrotliArchiveCreateOptions` does not expose a `NumThreads` option. Threaded Brotli compression is available through the codec API (`BrotliCodec` / `BrotliStream`), which uses the codec directly and bypasses the archive handler.
+
+A potential fix would be to modify the 7-Zip-zstd Brotli archive handler to forward `mt` to the codec, but this requires changes to the native C++ source.
+
+### LZMA2 zero-copy streaming compress
+
+LZMA2 is the only 7-Zip encoder that implements `ISequentialOutStream`, which would allow true push-based incremental compression without chunking or buffering. The current implementation uses chunking for consistency with the other codecs, but a future `Lzma2Stream` variant could leverage this for lower memory usage and latency on the compress path.
