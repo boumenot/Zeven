@@ -528,4 +528,40 @@ public class ArchiveCreateTests
             Directory.Delete(tempDir, true);
         }
     }
+
+    [Fact]
+    public void CreateArchive_StringFormat_DiskFiles_WithOptions_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var tempDir = Path.Combine(Path.GetTempPath(), "zeven_test_" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "hello.txt"), "Hello with options!");
+            File.WriteAllBytes(Path.Combine(tempDir, "data.bin"), new byte[500]);
+
+            var files = new Dictionary<string, string>
+            {
+                ["hello.txt"] = Path.Combine(tempDir, "hello.txt"),
+                ["data.bin"] = Path.Combine(tempDir, "data.bin"),
+            };
+
+            using var ms = new MemoryStream();
+            lib.CreateArchive("7z", ms, files,
+                new SevenZipCreateOptions { Level = 9, Method = "LZMA2" });
+
+            ms.Position = 0;
+            using var handle = lib.CreateInArchive("7z");
+            handle.Open(ms);
+            var extracted = handle.ExtractAll();
+            Assert.Equal(2, extracted.Count);
+            Assert.Equal("Hello with options!",
+                System.Text.Encoding.UTF8.GetString(extracted["hello.txt"]));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }
