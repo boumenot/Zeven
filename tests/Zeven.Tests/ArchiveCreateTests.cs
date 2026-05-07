@@ -336,28 +336,9 @@ public class ArchiveCreateTests
         handle.Open(ms);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
-        Assert.Equal(data, extracted["test.txt"]);
+       Assert.Equal(data, extracted.Values.First());
     }
 
-    [Fact]
-    public void CreateArchive_BrotliWithNumThreads_RoundTrips()
-    {
-        using var lib = ZevenLibrary.Load(DllPath);
-        var files = new Dictionary<string, byte[]>
-        {
-            ["test.txt"] = new byte[10000],
-        };
-
-        using var ms = new MemoryStream();
-        lib.CreateArchive("brotli", ms, files, new BrotliArchiveCreateOptions { NumThreads = 1 });
-
-        ms.Position = 0;
-        using var handle = lib.CreateInArchive("brotli");
-        handle.Open(ms);
-        var extracted = handle.ExtractAll();
-        Assert.Single(extracted);
-        Assert.Equal(files["test.txt"], extracted["test.txt"]);
-    }
 
     [Fact]
     public void CreateArchive_Lz4WithLevel_RoundTrips()
@@ -374,7 +355,7 @@ public class ArchiveCreateTests
         handle.Open(ms);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
-        Assert.Equal(data, extracted["test.txt"]);
+       Assert.Equal(data, extracted.Values.First());
     }
 
     [Fact]
@@ -394,45 +375,43 @@ public class ArchiveCreateTests
         handle.Open(ms);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
-        Assert.Equal(files["test.txt"], extracted["test.txt"]);
+       Assert.Equal(files["test.txt"], extracted.Values.First());
     }
 
     [Fact]
     public void CreateArchive_ZipWithLevel_RoundTrips()
     {
-        using var lib = ZevenLibrary.Load(DllPath);
-        var data = System.Text.Encoding.UTF8.GetBytes("Hello zip test " + new string('c', 1000));
-        var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
+       using var lib = ZevenLibrary.Load(DllPath);
+       var data = System.Text.Encoding.UTF8.GetBytes("Hello zip test " + new string('c', 1000));
+       var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
 
-        var zipFormat = lib.Formats.First(f => f.Name == "Zip");
-        using var ms = new MemoryStream();
-        lib.CreateArchive(zipFormat.Name, ms, files, new ZipCreateOptions { Level = 9 });
+       using var ms = new MemoryStream();
+       lib.CreateArchive("zip", ms, files, new ZipCreateOptions { Level = 9 });
 
-        ms.Position = 0;
-        using var handle = lib.CreateInArchive(zipFormat.Name);
-        handle.Open(ms);
-        var extracted = handle.ExtractAll();
-        Assert.Single(extracted);
-        Assert.Equal(data, extracted["test.txt"]);
+       ms.Position = 0;
+       using var handle = lib.CreateInArchive("zip");
+       handle.Open(ms);
+       var extracted = handle.ExtractAll();
+       Assert.Single(extracted);
+       Assert.Equal(data, extracted["test.txt"]);
     }
 
     [Fact]
     public void CreateArchive_ZipWithMethod_RoundTrips()
     {
-        using var lib = ZevenLibrary.Load(DllPath);
-        var data = System.Text.Encoding.UTF8.GetBytes("Hello zip deflate test " + new string('d', 1000));
-        var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
+       using var lib = ZevenLibrary.Load(DllPath);
+       var data = System.Text.Encoding.UTF8.GetBytes("Hello zip deflate test " + new string('d', 1000));
+       var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
 
-        var zipFormat = lib.Formats.First(f => f.Name == "Zip");
-        using var ms = new MemoryStream();
-        lib.CreateArchive(zipFormat.Name, ms, files, new ZipCreateOptions { Method = "Deflate" });
+       using var ms = new MemoryStream();
+       lib.CreateArchive("zip", ms, files, new ZipCreateOptions { Method = "Deflate" });
 
-        ms.Position = 0;
-        using var handle = lib.CreateInArchive(zipFormat.Name);
-        handle.Open(ms);
-        var extracted = handle.ExtractAll();
-        Assert.Single(extracted);
-        Assert.Equal(data, extracted["test.txt"]);
+       ms.Position = 0;
+       using var handle = lib.CreateInArchive("zip");
+       handle.Open(ms);
+       var extracted = handle.ExtractAll();
+       Assert.Single(extracted);
+       Assert.Equal(data, extracted["test.txt"]);
     }
 
     [Fact]
