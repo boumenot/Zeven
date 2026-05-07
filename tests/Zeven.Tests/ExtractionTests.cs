@@ -233,4 +233,50 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
             if (Directory.Exists(tempDir)) { Directory.Delete(tempDir, true); }
         }
     }
+
+    [Fact]
+    public void Extract_Cancellation_Throws()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]> { ["test.txt"] = new byte[10000] };
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files);
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(ms);
+
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.ThrowsAny<OperationCanceledException>(
+            () => handle.Extract([0], cancellationToken: cts.Token));
+    }
+
+    [Fact]
+    public void ExtractTo_Cancellation_Throws()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]> { ["test.txt"] = new byte[10000] };
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "zeven_test_" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            ms.Position = 0;
+            using var handle = lib.CreateInArchive("7z");
+            handle.Open(ms);
+
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.ThrowsAny<OperationCanceledException>(
+                () => handle.ExtractTo(tempDir, cancellationToken: cts.Token));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) { Directory.Delete(tempDir, true); }
+        }
+    }
 }
