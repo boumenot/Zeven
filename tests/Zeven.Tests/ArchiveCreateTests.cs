@@ -432,4 +432,22 @@ public class ArchiveCreateTests
         Assert.True(ultra.Length <= fast.Length,
             $"Level 9 ({ultra.Length}) should be <= level 1 ({fast.Length})");
     }
+
+    [Fact]
+    public void CreateArchive_ZipWithNumThreads_RoundTrips()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var data = System.Text.Encoding.UTF8.GetBytes("Hello zip threads " + new string('t', 1000));
+        var files = new Dictionary<string, byte[]> { ["test.txt"] = data };
+
+        using var ms = new MemoryStream();
+        lib.CreateArchive("zip", ms, files, new ZipCreateOptions { NumThreads = 1 });
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("zip");
+        handle.Open(ms);
+        var extracted = handle.ExtractAll();
+        Assert.Single(extracted);
+        Assert.Equal(data, extracted["test.txt"]);
+    }
 }
