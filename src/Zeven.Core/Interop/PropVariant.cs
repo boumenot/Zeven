@@ -123,6 +123,7 @@ public static class PropId
     public const uint kpidMTime      = 12;
     public const uint kpidEncrypted  = 14;
     public const uint kpidCRC        = 19;
+    public const uint kpidIsAnti     = 21;
     public const uint kpidMethod     = 22;
 }
 

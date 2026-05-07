@@ -663,7 +663,7 @@ internal readonly record struct ArchiveItemProperties(
                 value.VarType = PropVariant.VT_FILETIME;
                 value.LongValue = item.ModifiedTime;
                 break;
-            case 21: // kpidIsAnti
+            case PropId.kpidIsAnti:
                 value.VarType = PropVariant.VT_BOOL;
                 value.BoolValue = 0;
                 break;
