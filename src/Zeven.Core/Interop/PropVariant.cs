@@ -57,6 +57,48 @@ public struct PropVariant
         if (VarType != VT_FILETIME || LongValue == 0) return null;
         return DateTime.FromFileTimeUtc(LongValue);
     }
+
+    /// <summary>Create a PropVariant from a managed value (uint, int, ulong, bool, or string).</summary>
+    public static PropVariant FromObject(object value)
+    {
+        var pv = new PropVariant();
+        switch (value)
+        {
+            case uint u:
+                pv.VarType = VT_UI4;
+                pv.UIntValue = u;
+                break;
+            case int si:
+                pv.VarType = VT_I4;
+                pv.IntValue = si;
+                break;
+            case ulong ul:
+                pv.VarType = VT_UI8;
+                pv.ULongValue = ul;
+                break;
+            case bool b:
+                pv.VarType = VT_BOOL;
+                pv.BoolValue = (short)(b ? -1 : 0);
+                break;
+            case string s:
+                pv.VarType = VT_BSTR;
+                pv.PointerValue = Marshal.StringToBSTR(s);
+                break;
+            default:
+                throw new ArgumentException($"Unsupported property value type: {value.GetType().Name}");
+        }
+        return pv;
+    }
+
+    /// <summary>Free the BSTR if this variant holds one.</summary>
+    public void FreeBstr()
+    {
+        if (this.VarType == VT_BSTR && this.PointerValue != nint.Zero)
+        {
+            Marshal.FreeBSTR(this.PointerValue);
+            this.PointerValue = nint.Zero;
+        }
+    }
 }
 
 /// <summary>P/Invoke helpers for PROPVARIANT lifetime management.</summary>

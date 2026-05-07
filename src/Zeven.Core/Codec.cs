@@ -72,28 +72,7 @@ internal static class Codec
             foreach (var (propId, value) in props)
             {
                 propIds[i] = propId;
-                propVals[i] = default;
-                switch (value)
-                {
-                    case uint u:
-                        propVals[i].VarType = PropVariant.VT_UI4;
-                        propVals[i].UIntValue = u;
-                        break;
-                    case ulong ul:
-                        propVals[i].VarType = PropVariant.VT_UI8;
-                        propVals[i].ULongValue = ul;
-                        break;
-                    case int si:
-                        propVals[i].VarType = PropVariant.VT_I4;
-                        propVals[i].IntValue = si;
-                        break;
-                    case bool b:
-                        propVals[i].VarType = PropVariant.VT_BOOL;
-                        propVals[i].BoolValue = (short)(b ? -1 : 0);
-                        break;
-                    default:
-                        throw new ArgumentException($"Unsupported property value type: {value.GetType().Name}");
-                }
+                propVals[i] = PropVariant.FromObject(value);
                 i++;
             }
 
