@@ -307,34 +307,10 @@ public partial class UpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPass
     {
         value = default;
         var (path, data) = this.items[(int)index];
-
-        switch (propID)
-        {
-            case PropId.kpidPath:
-                value.VarType = PropVariant.VT_BSTR;
-                value.PointerValue = Marshal.StringToBSTR(path);
-                break;
-            case PropId.kpidIsDir:
-                value.VarType = PropVariant.VT_BOOL;
-                value.BoolValue = 0; // false
-                break;
-            case PropId.kpidSize:
-                value.VarType = PropVariant.VT_UI8;
-                value.ULongValue = (ulong)data.Length;
-                break;
-            case PropId.kpidAttrib:
-                value.VarType = PropVariant.VT_UI4;
-                value.UIntValue = 0x20; // FILE_ATTRIBUTE_ARCHIVE
-                break;
-            case PropId.kpidMTime:
-                value.VarType = PropVariant.VT_FILETIME;
-                value.LongValue = DateTime.UtcNow.ToFileTimeUtc();
-                break;
-            case 21: // kpidIsAnti
-                value.VarType = PropVariant.VT_BOOL;
-                value.BoolValue = 0;
-                break;
-        }
+        long now = DateTime.UtcNow.ToFileTimeUtc();
+        var info = new ArchiveItemProperties(path, (ulong)data.Length,
+                0x20, now, now, now);
+        ArchiveItemProperties.FillProperty(propID, ref value, info);
         return 0;
     }
 
@@ -436,42 +412,12 @@ public partial class FileUpdateCallback : IArchiveUpdateCallback, ICryptoGetText
         value = default;
         var (archiveName, filePath) = this.items[(int)index];
         var fileInfo = new FileInfo(filePath);
-
-        switch (propID)
-        {
-            case PropId.kpidPath:
-                value.VarType = PropVariant.VT_BSTR;
-                value.PointerValue = Marshal.StringToBSTR(archiveName);
-                break;
-            case PropId.kpidIsDir:
-                value.VarType = PropVariant.VT_BOOL;
-                value.BoolValue = 0; // false
-                break;
-            case PropId.kpidSize:
-                value.VarType = PropVariant.VT_UI8;
-                value.ULongValue = (ulong)fileInfo.Length;
-                break;
-            case PropId.kpidAttrib:
-                value.VarType = PropVariant.VT_UI4;
-                value.UIntValue = (uint)fileInfo.Attributes;
-                break;
-            case PropId.kpidCTime:
-                value.VarType = PropVariant.VT_FILETIME;
-                value.LongValue = fileInfo.CreationTimeUtc.ToFileTimeUtc();
-                break;
-            case PropId.kpidATime:
-                value.VarType = PropVariant.VT_FILETIME;
-                value.LongValue = fileInfo.LastAccessTimeUtc.ToFileTimeUtc();
-                break;
-            case PropId.kpidMTime:
-                value.VarType = PropVariant.VT_FILETIME;
-                value.LongValue = fileInfo.LastWriteTimeUtc.ToFileTimeUtc();
-                break;
-            case 21: // kpidIsAnti
-                value.VarType = PropVariant.VT_BOOL;
-                value.BoolValue = 0;
-                break;
-        }
+        var info = new ArchiveItemProperties(archiveName, (ulong)fileInfo.Length,
+                (uint)fileInfo.Attributes,
+                fileInfo.CreationTimeUtc.ToFileTimeUtc(),
+                fileInfo.LastAccessTimeUtc.ToFileTimeUtc(),
+                fileInfo.LastWriteTimeUtc.ToFileTimeUtc());
+        ArchiveItemProperties.FillProperty(propID, ref value, info);
         return 0;
     }
 
@@ -672,5 +618,55 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
                 $"Entry path '{itemPath}' resolves outside the target directory.");
         }
         return fullPath;
+    }
+}
+
+/// <summary>
+/// Shared item metadata for archive creation callbacks.
+/// Used by both in-memory and disk-based update callbacks to avoid
+/// duplicating the property-filling switch statement.
+/// </summary>
+internal readonly record struct ArchiveItemProperties(
+    string Name, ulong Size, uint Attributes,
+    long CreationTime, long AccessTime, long ModifiedTime)
+{
+    public static void FillProperty(uint propID, ref PropVariant value,
+            ArchiveItemProperties item)
+    {
+        switch (propID)
+        {
+            case PropId.kpidPath:
+                value.VarType = PropVariant.VT_BSTR;
+                value.PointerValue = Marshal.StringToBSTR(item.Name);
+                break;
+            case PropId.kpidIsDir:
+                value.VarType = PropVariant.VT_BOOL;
+                value.BoolValue = 0;
+                break;
+            case PropId.kpidSize:
+                value.VarType = PropVariant.VT_UI8;
+                value.ULongValue = item.Size;
+                break;
+            case PropId.kpidAttrib:
+                value.VarType = PropVariant.VT_UI4;
+                value.UIntValue = item.Attributes;
+                break;
+            case PropId.kpidCTime:
+                value.VarType = PropVariant.VT_FILETIME;
+                value.LongValue = item.CreationTime;
+                break;
+            case PropId.kpidATime:
+                value.VarType = PropVariant.VT_FILETIME;
+                value.LongValue = item.AccessTime;
+                break;
+            case PropId.kpidMTime:
+                value.VarType = PropVariant.VT_FILETIME;
+                value.LongValue = item.ModifiedTime;
+                break;
+            case 21: // kpidIsAnti
+                value.VarType = PropVariant.VT_BOOL;
+                value.BoolValue = 0;
+                break;
+        }
     }
 }
