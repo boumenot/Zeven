@@ -51,11 +51,11 @@ public struct PropVariant
     /// <summary>Read a VT_UI4 or VT_I4 value as uint.</summary>
     public readonly uint GetUInt32() => VarType is VT_UI4 or VT_I4 ? UIntValue : 0;
 
-    /// <summary>Read a VT_FILETIME value as a nullable DateTime.</summary>
+    /// <summary>Read a VT_FILETIME value as a nullable UTC DateTime.</summary>
     public readonly DateTime? GetFileTime()
     {
         if (VarType != VT_FILETIME || LongValue == 0) return null;
-        return DateTime.FromFileTime(LongValue);
+        return DateTime.FromFileTimeUtc(LongValue);
     }
 }
 

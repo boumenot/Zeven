@@ -84,15 +84,16 @@ public class PropVariantTests
     #region GetFileTime Tests
 
     [Fact]
-    public void GetFileTime_VtFileTime_ReturnsDateTime()
+    public void GetFileTime_VtFileTime_ReturnsUtcDateTime()
     {
-        var expected = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Local);
-        var fileTime = expected.ToFileTime();
+        var expected = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var fileTime = expected.ToFileTimeUtc();
         
         var pv = new PropVariant { VarType = PropVariant.VT_FILETIME, LongValue = fileTime };
         var result = pv.GetFileTime();
         
         Assert.NotNull(result);
+        Assert.Equal(DateTimeKind.Utc, result.Value.Kind);
         Assert.Equal(expected, result.Value);
     }
 
