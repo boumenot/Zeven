@@ -170,4 +170,25 @@ public class ArchiveCreateTests
             if (Directory.Exists(tempDir)) { Directory.Delete(tempDir, true); }
         }
     }
+
+    [Fact]
+    public void ValidatePath_NormalPath_Succeeds()
+    {
+        string result = DirectoryExtractCallback.ValidatePathInternal(@"C:\output\", "docs/file.txt");
+        Assert.StartsWith(@"C:\output\", result);
+    }
+
+    [Fact]
+    public void ValidatePath_TraversalPath_Throws()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => DirectoryExtractCallback.ValidatePathInternal(@"C:\output\", @"..\..\evil.txt"));
+    }
+
+    [Fact]
+    public void ValidatePath_AbsolutePath_Throws()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => DirectoryExtractCallback.ValidatePathInternal(@"C:\output\", @"C:\Windows\evil.exe"));
+    }
 }

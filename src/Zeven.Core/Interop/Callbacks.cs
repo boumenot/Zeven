@@ -439,7 +439,7 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
     {
         this.archive = archive;
         this.comWrappers = cw;
-        this.baseDirectory = baseDirectory;
+        this.baseDirectory = Path.GetFullPath(baseDirectory) + Path.DirectorySeparatorChar;
         this.password = password;
     }
 
@@ -477,13 +477,13 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
 
         if (isDir)
         {
-            string dirPath = Path.Combine(this.baseDirectory, itemPath);
+            string dirPath = this.ValidatePath(itemPath);
             Directory.CreateDirectory(dirPath);
             return 0;
         }
 
         // It's a file — create parent directories and open a FileStream
-        string fullPath = Path.Combine(this.baseDirectory, itemPath);
+        string fullPath = this.ValidatePath(itemPath);
         string? parentDir = Path.GetDirectoryName(fullPath);
         if (parentDir != null)
         {
@@ -522,5 +522,21 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
         }
         password = Marshal.StringToBSTR(this.password);
         return 0;
+    }
+
+    private string ValidatePath(string itemPath)
+    {
+        return ValidatePathInternal(this.baseDirectory, itemPath);
+    }
+
+    internal static string ValidatePathInternal(string baseDirectory, string itemPath)
+    {
+        string fullPath = Path.GetFullPath(Path.Combine(baseDirectory, itemPath));
+        if (!fullPath.StartsWith(baseDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Entry path '{itemPath}' resolves outside the target directory.");
+        }
+        return fullPath;
     }
 }
