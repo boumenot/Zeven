@@ -15,13 +15,30 @@ public static class ZevenCodec
         byte[] propertyHeader = Codec.CapturePropertyHeader(options);
         ZevenFormat.WriteHeader(output, options.CodecId, propertyHeader);
 
-        long inputLength = input.Length - input.Position;
-        if (inputLength > 0)
+        int chunkSize = options.ChunkSize;
+        byte[] buffer = new byte[chunkSize];
+        long remaining = input.Length - input.Position;
+
+        while (remaining > 0)
         {
+            int toRead = (int)Math.Min(remaining, chunkSize);
+            int totalRead = 0;
+            while (totalRead < toRead)
+            {
+                int n = input.Read(buffer, totalRead, toRead - totalRead);
+                if (n == 0) { break; }
+                totalRead += n;
+            }
+
+            if (totalRead == 0) { break; }
+
+            using var inputChunk = new MemoryStream(buffer, 0, totalRead, writable: false);
             using var compressed = new MemoryStream();
-            Codec.CompressBlock(options, propertyHeader, input, compressed);
-            ZevenFormat.WriteChunk(output, inputLength,
+            Codec.CompressBlock(options, propertyHeader, inputChunk, compressed);
+            ZevenFormat.WriteChunk(output, totalRead,
                     compressed.GetBuffer().AsSpan(0, (int)compressed.Length));
+
+            remaining -= totalRead;
         }
 
         ZevenFormat.WriteEndMarker(output);

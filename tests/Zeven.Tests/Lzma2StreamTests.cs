@@ -5,7 +5,7 @@ namespace Zeven.Tests;
 
 public class Lzma2StreamTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     // Ensure library is loaded
     static Lzma2StreamTests() => ZevenLibrary.Load(DllPath);
@@ -204,6 +204,45 @@ public class Lzma2StreamTests
 
         using var compressed = new MemoryStream();
         using (var compressor = new Lzma2Stream(compressed, CompressionMode.Compress, leaveOpen: true))
+        {
+            compressor.Write(original);
+        }
+
+        compressed.Position = 0;
+        using var result = new MemoryStream();
+        Lzma2Codec.Decompress(compressed, result);
+
+        Assert.Equal(original, result.ToArray());
+    }
+
+    [Fact]
+    public void CrossApiCompat_MultiChunk_CodecWriteStreamRead()
+    {
+        var options = new Lzma2Options { ChunkSize = 512 };
+        var original = new byte[2000];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        Lzma2Codec.Compress(new MemoryStream(original), compressed, options);
+
+        compressed.Position = 0;
+        using var decompressor = new Lzma2Stream(compressed, CompressionMode.Decompress);
+        using var result = new MemoryStream();
+        decompressor.CopyTo(result);
+
+        Assert.Equal(original, result.ToArray());
+    }
+
+    [Fact]
+    public void CrossApiCompat_MultiChunk_StreamWriteCodecRead()
+    {
+        var options = new Lzma2Options { ChunkSize = 512 };
+        var original = new byte[2000];
+        new Random(42).NextBytes(original);
+
+        using var compressed = new MemoryStream();
+        using (var compressor = new Lzma2Stream(compressed, CompressionMode.Compress,
+                leaveOpen: true, options: options))
         {
             compressor.Write(original);
         }
