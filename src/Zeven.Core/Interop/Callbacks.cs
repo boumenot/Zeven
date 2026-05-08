@@ -446,110 +446,6 @@ public abstract class UpdateCallbackBase : IArchiveUpdateCallback, ICryptoGetTex
 }
 
 /// <summary>
-/// Archive creation callback with optional password support.
-/// </summary>
-[GeneratedComClass]
-public partial class UpdateCallback : UpdateCallbackBase
-{
-    private readonly List<(string Path, byte[] Data)> items;
-
-    public UpdateCallback(Dictionary<string, byte[]> files, StrategyBasedComWrappers cw,
-            string? password = null,
-            IProgress<ArchiveProgress>? progress = null,
-            CancellationToken cancellationToken = default)
-        : base(cw, password, progress, cancellationToken)
-    {
-        this.items = files.Select(kv => (kv.Key, kv.Value)).ToList();
-    }
-
-    public override int GetUpdateItemInfo(uint index, out int newData, out int newProps,
-            out uint indexInArchive)
-    {
-        newData = 1;
-        newProps = 1;
-        indexInArchive = unchecked((uint)-1);
-        return 0;
-    }
-
-    public override int GetProperty(uint index, uint propID, ref PropVariant value)
-    {
-        value = default;
-        var (path, data) = this.items[(int)index];
-        long now = DateTime.UtcNow.ToFileTimeUtc();
-        var info = new ArchiveItemProperties(path, (ulong)data.Length,
-                0x20, now, now, now);
-        ArchiveItemProperties.FillProperty(propID, ref value, info);
-        return 0;
-    }
-
-    public override int GetStream(uint index, out nint inStream)
-    {
-        var data = this.items[(int)index].Data;
-        return this.CreateInStream(new MemoryStream(data, writable: false), out inStream);
-    }
-}
-
-/// <summary>
-/// Archive creation callback that streams files from disk instead of memory.
-/// </summary>
-[GeneratedComClass]
-public partial class FileUpdateCallback : UpdateCallbackBase
-{
-    private readonly List<(string ArchiveName, string FilePath)> items;
-    private FileStream? currentFileStream;
-
-    public FileUpdateCallback(Dictionary<string, string> files, StrategyBasedComWrappers cw,
-            string? password = null,
-            IProgress<ArchiveProgress>? progress = null,
-            CancellationToken cancellationToken = default)
-        : base(cw, password, progress, cancellationToken)
-    {
-        this.items = files.Select(kv => (kv.Key, kv.Value)).ToList();
-    }
-
-    public override int GetUpdateItemInfo(uint index, out int newData, out int newProps,
-            out uint indexInArchive)
-    {
-        newData = 1;
-        newProps = 1;
-        indexInArchive = unchecked((uint)-1);
-        return 0;
-    }
-
-    public override int GetProperty(uint index, uint propID, ref PropVariant value)
-    {
-        value = default;
-        var (archiveName, filePath) = this.items[(int)index];
-        var fileInfo = new FileInfo(filePath);
-        var info = new ArchiveItemProperties(archiveName, (ulong)fileInfo.Length,
-                (uint)fileInfo.Attributes,
-                fileInfo.CreationTimeUtc.ToFileTimeUtc(),
-                fileInfo.LastAccessTimeUtc.ToFileTimeUtc(),
-                fileInfo.LastWriteTimeUtc.ToFileTimeUtc());
-        ArchiveItemProperties.FillProperty(propID, ref value, info);
-        return 0;
-    }
-
-    public override int GetStream(uint index, out nint inStream)
-    {
-        var filePath = this.items[(int)index].FilePath;
-        var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-        this.currentFileStream = fs;
-        return this.CreateInStream(fs, out inStream);
-    }
-
-    public override int SetOperationResult(int operationResult)
-    {
-        if (this.currentFileStream != null)
-        {
-            this.currentFileStream.Dispose();
-            this.currentFileStream = null;
-        }
-        return 0;
-    }
-}
-
-/// <summary>
 /// Extraction callback that writes each item directly to files on disk.
 /// </summary>
 [GeneratedComClass]
@@ -773,17 +669,18 @@ internal record MergeItem
 }
 
 /// <summary>
-/// Archive update callback that merges existing archive items with add/replace/delete operations.
+/// Unified archive callback for both creation and update operations.
 /// Handles copy (unchanged), new, and replace semantics for 7-Zip's IArchiveUpdateCallback.
+/// When sourceArchive is null, all items are treated as new (archive creation).
 /// </summary>
 [GeneratedComClass]
 internal partial class MergeUpdateCallback : UpdateCallbackBase
 {
-    private readonly IInArchive sourceArchive;
+    private readonly IInArchive? sourceArchive;
     private readonly List<MergeItem> outputItems;
     private FileStream? currentFileStream;
 
-    public MergeUpdateCallback(IInArchive sourceArchive, StrategyBasedComWrappers cw,
+    public MergeUpdateCallback(IInArchive? sourceArchive, StrategyBasedComWrappers cw,
             List<MergeItem> outputItems,
             string? password = null,
             IProgress<ArchiveProgress>? progress = null,
@@ -821,14 +718,36 @@ internal partial class MergeUpdateCallback : UpdateCallbackBase
 
         if (item.DataSource != null || item.IsNew)
         {
-            long now = DateTime.UtcNow.ToFileTimeUtc();
-            var info = new ArchiveItemProperties(item.Path!, (ulong)(item.Size ?? 0),
-                    0x20, now, now, now);
+            long ctime, atime, mtime;
+            uint attrs;
+            ulong size;
+
+            if (item.DataSource is string filePath)
+            {
+                var fileInfo = new FileInfo(filePath);
+                size = (ulong)fileInfo.Length;
+                attrs = (uint)fileInfo.Attributes;
+                ctime = fileInfo.CreationTimeUtc.ToFileTimeUtc();
+                atime = fileInfo.LastAccessTimeUtc.ToFileTimeUtc();
+                mtime = fileInfo.LastWriteTimeUtc.ToFileTimeUtc();
+            }
+            else
+            {
+                size = (ulong)(item.Size ?? 0);
+                attrs = 0x20;
+                long now = DateTime.UtcNow.ToFileTimeUtc();
+                ctime = now;
+                atime = now;
+                mtime = now;
+            }
+
+            var info = new ArchiveItemProperties(item.Path!, size, attrs,
+                    ctime, atime, mtime);
             ArchiveItemProperties.FillProperty(propID, ref value, info);
         }
         else
         {
-            this.sourceArchive.GetProperty(item.SourceIndex!.Value, propID, ref value);
+            this.sourceArchive!.GetProperty(item.SourceIndex!.Value, propID, ref value);
         }
         return 0;
     }

@@ -158,50 +158,22 @@ public sealed class ZevenLibrary : IDisposable
             IProgress<ArchiveProgress>? progress = null,
             CancellationToken cancellationToken = default)
     {
+        var items = files.Select(kv => new MergeItem
+        {
+            Path = kv.Key,
+            DataSource = kv.Value,
+            Size = kv.Value.Length,
+            IsNew = true,
+        }).ToList();
+
         Guid iid = Iid.IOutArchive;
         int hr = this.createObject(in classId, in iid, out nint ptr);
         Marshal.ThrowExceptionForHR(hr);
 
         try
         {
-            if (options != null)
-            {
-                ArchiveOptions.ApplyProperties(ptr, this.comWrappers, options.GetProperties().ToList());
-            }
-
-            var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
-
-            var outWrapper = new OutStreamWrapper(outputStream);
-            var updateCallback = new UpdateCallback(files, this.comWrappers, password,
+            this.ExecuteUpdateItems(ptr, outputStream, items, null, options, password,
                     progress, cancellationToken);
-
-            nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
-            Guid iidOutStream = Iid.IOutStream;
-            Marshal.QueryInterface(outCcw, ref iidOutStream, out nint outPtr);
-
-            nint cbCcw = this.comWrappers.GetOrCreateComInterfaceForObject(updateCallback, CreateComInterfaceFlags.None);
-            Guid iidUpdateCb = Iid.IArchiveUpdateCallback;
-            Marshal.QueryInterface(cbCcw, ref iidUpdateCb, out nint cbPtr);
-
-            hr = outArchive.UpdateItems(outPtr, (uint)files.Count, cbPtr);
-
-            if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
-            if (cbPtr != nint.Zero) { Marshal.Release(cbPtr); }
-            Marshal.Release(outCcw);
-            Marshal.Release(cbCcw);
-            GC.KeepAlive(outWrapper);
-            GC.KeepAlive(updateCallback);
-
-            try
-            {
-                Marshal.ThrowExceptionForHR(hr);
-            }
-            catch (COMException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException(cancellationToken);
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
         }
         finally
         {
@@ -216,50 +188,21 @@ public sealed class ZevenLibrary : IDisposable
             IProgress<ArchiveProgress>? progress = null,
             CancellationToken cancellationToken = default)
     {
+        var items = files.Select(kv => new MergeItem
+        {
+            Path = kv.Key,
+            DataSource = kv.Value,
+            IsNew = true,
+        }).ToList();
+
         Guid iid = Iid.IOutArchive;
         int hr = this.createObject(in classId, in iid, out nint ptr);
         Marshal.ThrowExceptionForHR(hr);
 
         try
         {
-            if (options != null)
-            {
-                ArchiveOptions.ApplyProperties(ptr, this.comWrappers, options.GetProperties().ToList());
-            }
-
-            var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
-
-            var outWrapper = new OutStreamWrapper(outputStream);
-            var updateCallback = new FileUpdateCallback(files, this.comWrappers, password,
+            this.ExecuteUpdateItems(ptr, outputStream, items, null, options, password,
                     progress, cancellationToken);
-
-            nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(outWrapper, CreateComInterfaceFlags.None);
-            Guid iidOutStream = Iid.IOutStream;
-            Marshal.QueryInterface(outCcw, ref iidOutStream, out nint outPtr);
-
-            nint cbCcw = this.comWrappers.GetOrCreateComInterfaceForObject(updateCallback, CreateComInterfaceFlags.None);
-            Guid iidUpdateCb = Iid.IArchiveUpdateCallback;
-            Marshal.QueryInterface(cbCcw, ref iidUpdateCb, out nint cbPtr);
-
-            hr = outArchive.UpdateItems(outPtr, (uint)files.Count, cbPtr);
-
-            if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
-            if (cbPtr != nint.Zero) { Marshal.Release(cbPtr); }
-            Marshal.Release(outCcw);
-            Marshal.Release(cbCcw);
-            GC.KeepAlive(outWrapper);
-            GC.KeepAlive(updateCallback);
-
-            try
-            {
-                Marshal.ThrowExceptionForHR(hr);
-            }
-            catch (COMException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException(cancellationToken);
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
         }
         finally
         {
@@ -399,53 +342,8 @@ public sealed class ZevenLibrary : IDisposable
 
         try
         {
-            if (options != null)
-            {
-                ArchiveOptions.ApplyProperties(outArchivePtr, this.comWrappers, options.GetProperties().ToList());
-            }
-
-            var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(
-                    outArchivePtr, CreateObjectFlags.UniqueInstance);
-
-            var outWrapper = new OutStreamWrapper(outputStream);
-            var updateCallback = new MergeUpdateCallback(sourceHandle.Archive, this.comWrappers,
-                    outputItems, password, progress, cancellationToken);
-
-            nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(
-                    outWrapper, CreateComInterfaceFlags.None);
-            Guid iidOutStream = Iid.IOutStream;
-            Marshal.QueryInterface(outCcw, ref iidOutStream, out nint outPtr);
-
-            nint cbCcw = this.comWrappers.GetOrCreateComInterfaceForObject(
-                    updateCallback, CreateComInterfaceFlags.None);
-            Guid iidUpdateCb = Iid.IArchiveUpdateCallback;
-            Marshal.QueryInterface(cbCcw, ref iidUpdateCb, out nint cbPtr);
-
-            int hr;
-            try
-            {
-                hr = outArchive.UpdateItems(outPtr, (uint)outputItems.Count, cbPtr);
-            }
-            finally
-            {
-                if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
-                if (cbPtr != nint.Zero) { Marshal.Release(cbPtr); }
-                Marshal.Release(outCcw);
-                Marshal.Release(cbCcw);
-                GC.KeepAlive(outWrapper);
-                GC.KeepAlive(updateCallback);
-            }
-
-            try
-            {
-                Marshal.ThrowExceptionForHR(hr);
-            }
-            catch (COMException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException(cancellationToken);
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
+            this.ExecuteUpdateItems(outArchivePtr, outputStream, outputItems, sourceHandle.Archive,
+                    options, password, progress, cancellationToken);
         }
         finally
         {
@@ -474,6 +372,65 @@ public sealed class ZevenLibrary : IDisposable
             throw new ArgumentException($"Unknown archive format: '{formatName}'.", nameof(formatName));
         }
         return format.ClassId;
+    }
+
+    /// <summary>
+    /// Shared COM boilerplate for UpdateItems: apply options, create callbacks, call UpdateItems,
+    /// release COM pointers. Used by both CreateArchive and UpdateArchive.
+    /// </summary>
+    private void ExecuteUpdateItems(nint outArchivePtr, Stream outputStream,
+            List<MergeItem> items, IInArchive? sourceArchive,
+            IArchiveCreateOptions? options, string? password,
+            IProgress<ArchiveProgress>? progress, CancellationToken cancellationToken)
+    {
+        if (options != null)
+        {
+            ArchiveOptions.ApplyProperties(outArchivePtr, this.comWrappers,
+                    options.GetProperties().ToList());
+        }
+
+        var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(
+                outArchivePtr, CreateObjectFlags.UniqueInstance);
+
+        var outWrapper = new OutStreamWrapper(outputStream);
+        var updateCallback = new MergeUpdateCallback(sourceArchive, this.comWrappers,
+                items, password, progress, cancellationToken);
+
+        nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(
+                outWrapper, CreateComInterfaceFlags.None);
+        Guid iidOutStream = Iid.IOutStream;
+        Marshal.QueryInterface(outCcw, ref iidOutStream, out nint outPtr);
+
+        nint cbCcw = this.comWrappers.GetOrCreateComInterfaceForObject(
+                updateCallback, CreateComInterfaceFlags.None);
+        Guid iidUpdateCb = Iid.IArchiveUpdateCallback;
+        Marshal.QueryInterface(cbCcw, ref iidUpdateCb, out nint cbPtr);
+
+        int hr;
+        try
+        {
+            hr = outArchive.UpdateItems(outPtr, (uint)items.Count, cbPtr);
+        }
+        finally
+        {
+            if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
+            if (cbPtr != nint.Zero) { Marshal.Release(cbPtr); }
+            Marshal.Release(outCcw);
+            Marshal.Release(cbCcw);
+            GC.KeepAlive(outWrapper);
+            GC.KeepAlive(updateCallback);
+        }
+
+        try
+        {
+            Marshal.ThrowExceptionForHR(hr);
+        }
+        catch (COMException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private static List<ArchiveFormat> LoadFormats(
