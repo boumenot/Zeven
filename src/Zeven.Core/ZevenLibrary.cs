@@ -95,7 +95,7 @@ public sealed class ZevenLibrary : IDisposable
         int hr = this.createObject(in classId, in iid, out nint ptr);
         Marshal.ThrowExceptionForHR(hr);
         var archive = (IInArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
-        return new ArchiveHandle(archive, this.comWrappers);
+        return new ArchiveHandle(archive, this.comWrappers) { NativeArchivePtr = ptr };
     }
 
     /// <summary>Create an IInArchive COM object by format name (e.g., "7z", "Zip", "Tar").</summary>
@@ -278,6 +278,155 @@ public sealed class ZevenLibrary : IDisposable
                 options, password, progress, cancellationToken);
     }
 
+    /// <summary>Update an existing archive: add, replace, or delete items.</summary>
+    public void UpdateArchive(Guid classId, ArchiveHandle sourceHandle, Stream outputStream,
+            Action<ArchiveUpdateBuilder> configure,
+            IArchiveCreateOptions? options = null,
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+    {
+        var builder = new ArchiveUpdateBuilder();
+        configure(builder);
+
+        // Build the merged output item list from existing entries + operations
+        var entries = sourceHandle.Entries;
+        var outputItems = new List<MergeItem>();
+
+        // Collect paths targeted for delete or replace
+        var deletePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var replacements = new Dictionary<string, (object? Source, long? Size)>(
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var op in builder.operations)
+        {
+            switch (op.Action)
+            {
+                case ArchiveUpdateBuilder.UpdateAction.Delete:
+                    deletePaths.Add(op.Path);
+                    break;
+                case ArchiveUpdateBuilder.UpdateAction.Replace:
+                    replacements[op.Path] = (op.Source, op.Size);
+                    break;
+            }
+        }
+
+        // Process existing items: copy, replace, or skip (delete)
+        for (int i = 0; i < entries.Count; i++)
+        {
+            var entry = entries[i];
+            if (deletePaths.Contains(entry.Path))
+            {
+                continue; // skip deleted items
+            }
+
+            if (replacements.TryGetValue(entry.Path, out var repl))
+            {
+                outputItems.Add(new MergeItem
+                {
+                    SourceIndex = entry.Index,
+                    Path = entry.Path,
+                    DataSource = repl.Source,
+                    Size = repl.Size,
+                    IsNew = false,
+                });
+            }
+            else
+            {
+                // Copy unchanged
+                outputItems.Add(new MergeItem
+                {
+                    SourceIndex = entry.Index,
+                });
+            }
+        }
+
+        // Append new items
+        foreach (var op in builder.operations)
+        {
+            if (op.Action == ArchiveUpdateBuilder.UpdateAction.Add)
+            {
+                outputItems.Add(new MergeItem
+                {
+                    Path = op.Path,
+                    DataSource = op.Source,
+                    Size = op.Size,
+                    IsNew = true,
+                });
+            }
+        }
+
+        // QI the existing handler for IOutArchive (same COM object that has the source archive open)
+        Guid iidOut = Iid.IOutArchive;
+        Marshal.QueryInterface(sourceHandle.NativeArchivePtr, ref iidOut, out nint outArchivePtr);
+        if (outArchivePtr == nint.Zero)
+        {
+            throw new InvalidOperationException("The archive format does not support updating.");
+        }
+
+        try
+        {
+            options?.Apply(outArchivePtr, this.comWrappers);
+
+            var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(
+                    outArchivePtr, CreateObjectFlags.UniqueInstance);
+
+            var outWrapper = new OutStreamWrapper(outputStream);
+            var updateCallback = new MergeUpdateCallback(sourceHandle.Archive, this.comWrappers,
+                    outputItems, password, progress, cancellationToken);
+
+            nint outCcw = this.comWrappers.GetOrCreateComInterfaceForObject(
+                    outWrapper, CreateComInterfaceFlags.None);
+            Guid iidOutStream = Iid.IOutStream;
+            Marshal.QueryInterface(outCcw, ref iidOutStream, out nint outPtr);
+
+            nint cbCcw = this.comWrappers.GetOrCreateComInterfaceForObject(
+                    updateCallback, CreateComInterfaceFlags.None);
+            Guid iidUpdateCb = Iid.IArchiveUpdateCallback;
+            Marshal.QueryInterface(cbCcw, ref iidUpdateCb, out nint cbPtr);
+
+            int hr;
+            try
+            {
+                hr = outArchive.UpdateItems(outPtr, (uint)outputItems.Count, cbPtr);
+            }
+            finally
+            {
+                if (outPtr != nint.Zero) { Marshal.Release(outPtr); }
+                if (cbPtr != nint.Zero) { Marshal.Release(cbPtr); }
+                Marshal.Release(outCcw);
+                Marshal.Release(cbCcw);
+                GC.KeepAlive(outWrapper);
+                GC.KeepAlive(updateCallback);
+            }
+
+            try
+            {
+                Marshal.ThrowExceptionForHR(hr);
+            }
+            catch (COMException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(cancellationToken);
+            }
+        }
+        finally
+        {
+            Marshal.Release(outArchivePtr);
+        }
+    }
+
+    /// <summary>Update an existing archive by format name (e.g., "7z", "Zip").</summary>
+    public void UpdateArchive(string formatName, ArchiveHandle sourceHandle, Stream outputStream,
+            Action<ArchiveUpdateBuilder> configure,
+            IArchiveCreateOptions? options = null,
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+    {
+        this.UpdateArchive(this.ResolveFormat(formatName), sourceHandle, outputStream,
+                configure, options, password, progress, cancellationToken);
+    }
+
     private Guid ResolveFormat(string formatName)
     {
         var format = this.Formats.FirstOrDefault(f =>
@@ -346,6 +495,7 @@ public sealed class ArchiveHandle : IDisposable
 {
     public IInArchive Archive { get; }
     public StrategyBasedComWrappers ComWrappers { get; }
+    internal nint NativeArchivePtr { get; set; }
 
     // prevent GC of managed COM wrappers while native code holds references
     private InStreamWrapper? streamWrapper;

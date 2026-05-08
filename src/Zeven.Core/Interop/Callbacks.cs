@@ -670,3 +670,184 @@ internal readonly record struct ArchiveItemProperties(
         }
     }
 }
+
+/// <summary>
+/// Describes a single item in the merged output for archive update operations.
+/// </summary>
+internal record MergeItem
+{
+    public uint? SourceIndex { get; init; }
+    public string? Path { get; init; }
+    public object? DataSource { get; init; }
+    public long? Size { get; init; }
+    public bool IsNew { get; init; }
+}
+
+/// <summary>
+/// Archive update callback that merges existing archive items with add/replace/delete operations.
+/// Handles copy (unchanged), new, and replace semantics for 7-Zip's IArchiveUpdateCallback.
+/// </summary>
+[GeneratedComClass]
+internal partial class MergeUpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPassword2
+{
+    private readonly IInArchive sourceArchive;
+    private readonly StrategyBasedComWrappers comWrappers;
+    private readonly List<MergeItem> outputItems;
+    private readonly string? password;
+    private readonly IProgress<ArchiveProgress>? progress;
+    private readonly CancellationToken cancellationToken;
+    private ulong totalBytes;
+    private readonly List<object> liveObjects = new();
+    private FileStream? currentFileStream;
+
+    public MergeUpdateCallback(IInArchive sourceArchive, StrategyBasedComWrappers cw,
+            List<MergeItem> outputItems,
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+    {
+        this.sourceArchive = sourceArchive;
+        this.comWrappers = cw;
+        this.outputItems = outputItems;
+        this.password = password;
+        this.progress = progress;
+        this.cancellationToken = cancellationToken;
+    }
+
+    // IProgress
+    public int SetTotal(ulong total)
+    {
+        this.totalBytes = total;
+        return 0;
+    }
+
+    public int SetCompleted(nint completeValue)
+    {
+        if (this.cancellationToken.IsCancellationRequested)
+        {
+            return unchecked((int)0x80004004); // E_ABORT
+        }
+
+        if (this.progress != null && completeValue != nint.Zero)
+        {
+            unsafe
+            {
+                ulong completed = *(ulong*)completeValue;
+                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
+            }
+        }
+        return 0;
+    }
+
+    public int GetUpdateItemInfo(uint index, out int newData, out int newProps, out uint indexInArchive)
+    {
+        var item = this.outputItems[(int)index];
+
+        if (item.DataSource != null || item.IsNew)
+        {
+            // New or replaced item — provide new data and properties
+            newData = 1;
+            newProps = 1;
+            indexInArchive = item.SourceIndex ?? unchecked((uint)-1);
+        }
+        else
+        {
+            // Copy from source archive unchanged
+            newData = 0;
+            newProps = 0;
+            indexInArchive = item.SourceIndex!.Value;
+        }
+        return 0;
+    }
+
+    public int GetProperty(uint index, uint propID, ref PropVariant value)
+    {
+        value = default;
+        var item = this.outputItems[(int)index];
+
+        if (item.DataSource != null || item.IsNew)
+        {
+            // New or replaced item — fill properties from the item metadata
+            long now = DateTime.UtcNow.ToFileTimeUtc();
+            var info = new ArchiveItemProperties(item.Path!, (ulong)(item.Size ?? 0),
+                    0x20, now, now, now);
+            ArchiveItemProperties.FillProperty(propID, ref value, info);
+        }
+        else
+        {
+            // Copy item — forward to source archive
+            this.sourceArchive.GetProperty(item.SourceIndex!.Value, propID, ref value);
+        }
+        return 0;
+    }
+
+    public int GetStream(uint index, out nint inStream)
+    {
+        var item = this.outputItems[(int)index];
+        inStream = nint.Zero;
+
+        if (item.DataSource == null)
+        {
+            // Copy item — 7-Zip reads directly from source archive
+            return 0;
+        }
+
+        InStreamWrapper wrapper;
+        switch (item.DataSource)
+        {
+            case byte[] bytes:
+            {
+                var ms = new MemoryStream(bytes, writable: false);
+                wrapper = new InStreamWrapper(ms);
+                this.liveObjects.Add(ms);
+                break;
+            }
+            case string filePath:
+            {
+                var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                this.currentFileStream = fs;
+                wrapper = new InStreamWrapper(fs);
+                break;
+            }
+            case Stream stream:
+            {
+                wrapper = new InStreamWrapper(stream);
+                break;
+            }
+            default:
+                return 0;
+        }
+
+        this.liveObjects.Add(wrapper);
+        nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
+        Guid iid = Iid.ISequentialInStream;
+        Marshal.QueryInterface(ccw, ref iid, out inStream);
+        Marshal.Release(ccw);
+        return 0;
+    }
+
+    public int SetOperationResult(int operationResult)
+    {
+        if (this.currentFileStream != null)
+        {
+            this.currentFileStream.Dispose();
+            this.currentFileStream = null;
+        }
+        return 0;
+    }
+
+    public int CryptoGetTextPassword2(out int passwordIsDefined, out nint password)
+    {
+        if (this.password != null)
+        {
+            passwordIsDefined = 1;
+            password = Marshal.StringToBSTR(this.password);
+        }
+        else
+        {
+            passwordIsDefined = 0;
+            password = nint.Zero;
+        }
+        return 0;
+    }
+}
