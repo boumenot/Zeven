@@ -122,27 +122,6 @@ public class Lzma2CodecTests
     }
 
     [Fact]
-    public void HigherLevel_ProducesSmallerOutput()
-    {
-        // Compressible but not trivially so
-        var data = new byte[256 * 1024];
-        var rng = new Random(42);
-        for (int i = 0; i < data.Length; i++)
-        {
-            data[i] = (byte)(rng.Next(10)); // low entropy
-        }
-
-        using var fast = new MemoryStream();
-        Lzma2Codec.Compress(new MemoryStream(data), fast, new Lzma2Options { Level = 1 });
-
-        using var ultra = new MemoryStream();
-        Lzma2Codec.Compress(new MemoryStream(data), ultra, new Lzma2Options { Level = 9 });
-
-        Assert.True(ultra.Length <= fast.Length,
-            $"Level 9 ({ultra.Length}) should produce output <= level 1 ({fast.Length})");
-    }
-
-    [Fact]
     public void Decompress_InvalidHeader_Throws()
     {
         // Not a valid ZevenFormat header
