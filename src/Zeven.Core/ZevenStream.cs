@@ -53,6 +53,10 @@ public class ZevenStream<TOptions> : Stream where TOptions : ICodecOptions, new(
             this.options = options ?? new TOptions();
             this.propertyHeader = Codec.CapturePropertyHeader(this.options);
             this.chunkSize = this.options.ChunkSize;
+            if (this.chunkSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(options), "ChunkSize must be positive.");
+            }
             this.chunkBuffer = ArrayPool<byte>.Shared.Rent(this.chunkSize);
             this.chunkBufferUsed = 0;
             this.headerWritten = false;

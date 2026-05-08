@@ -362,6 +362,22 @@ public class PpmdStreamTests
         stream.Dispose();
         stream.Dispose(); // should not throw
     }
+
+    [Fact]
+    public void Constructor_ZeroChunkSize_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PpmdStream(new MemoryStream(), CompressionMode.Compress,
+                new PpmdOptions { ChunkSize = 0 }));
+    }
+
+    [Fact]
+    public void Constructor_NegativeChunkSize_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new PpmdStream(new MemoryStream(), CompressionMode.Compress,
+                new PpmdOptions { ChunkSize = -1 }));
+    }
 }
 
 public class ZevenFormatTests
