@@ -72,4 +72,53 @@ public class DisposableTests
     {
         Assert.True(typeof(IDisposable).IsAssignableFrom(typeof(ArchiveHandle)));
     }
+
+    /// <summary>
+    /// Regression test for COM pointer leak in CreateInArchive.
+    /// Before the fix, each CreateInArchive call leaked the native COM pointer
+    /// from createObject — refcount never reached 0.
+    /// At 100K iterations, the leak produces ~100 MB growth.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "Stress")]
+    public void CreateAndDisposeArchive_RepeatedlyDoesNotLeakMemory()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        // Use larger data so each leaked COM object holds meaningful memory
+        var data = new byte[256 * 1024];
+        new Random(42).NextBytes(data);
+        var files = new Dictionary<string, byte[]> { ["data.bin"] = data };
+
+        using var archiveData = new MemoryStream();
+        lib.CreateArchive("7z", archiveData, files);
+        var archiveBytes = archiveData.ToArray();
+
+        // Warmup
+        for (int i = 0; i < 10; i++)
+        {
+            using var handle = lib.CreateInArchive("7z");
+            handle.Open(new MemoryStream(archiveBytes));
+            handle.ExtractAll();
+        }
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        long baseline = System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64;
+
+        for (int i = 0; i < 100_000; i++)
+        {
+            using var handle = lib.CreateInArchive("7z");
+            handle.Open(new MemoryStream(archiveBytes));
+            handle.ExtractAll();
+        }
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        long after = System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64;
+
+        long deltaMb = (after - baseline) / (1024 * 1024);
+        Assert.True(deltaMb < 50, $"Memory grew by {deltaMb} MB — possible COM ref leak");
+    }
 }
