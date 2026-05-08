@@ -11,7 +11,7 @@ public class BZip2CreateOptions : IArchiveCreateOptions
 
         public IEnumerable<(string Name, object Value)> GetProperties()
         {
-                if (this.Level.HasValue) { yield return ("x", (uint)this.Level.Value); }
-                if (this.NumPasses.HasValue) { yield return ("pass", (uint)this.NumPasses.Value); }
+                if (this.Level.HasValue) { yield return (ArchivePropName.Level, (uint)this.Level.Value); }
+                if (this.NumPasses.HasValue) { yield return (ArchivePropName.NumPasses, (uint)this.NumPasses.Value); }
         }
 }

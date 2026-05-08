@@ -20,10 +20,10 @@ public class SevenZipCreateOptions : IArchiveCreateOptions
 
     public IEnumerable<(string Name, object Value)> GetProperties()
     {
-        if (this.Level.HasValue) { yield return ("x", (uint)this.Level.Value); }
-        if (this.Method != null) { yield return ("0", this.Method); }
-        if (this.Solid.HasValue) { yield return ("s", this.Solid.Value); }
-        if (this.NumThreads.HasValue) { yield return ("mt", (uint)this.NumThreads.Value); }
-        if (this.EncryptHeaders.HasValue) { yield return ("he", this.EncryptHeaders.Value); }
+        if (this.Level.HasValue) { yield return (ArchivePropName.Level, (uint)this.Level.Value); }
+        if (this.Method != null) { yield return (ArchivePropName.Method, this.Method); }
+        if (this.Solid.HasValue) { yield return (ArchivePropName.Solid, this.Solid.Value); }
+        if (this.NumThreads.HasValue) { yield return (ArchivePropName.NumThreads, (uint)this.NumThreads.Value); }
+        if (this.EncryptHeaders.HasValue) { yield return (ArchivePropName.EncryptHeaders, this.EncryptHeaders.Value); }
     }
 }

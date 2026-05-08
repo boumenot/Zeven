@@ -8,6 +8,6 @@ public class BrotliArchiveCreateOptions : IArchiveCreateOptions
 
     public IEnumerable<(string Name, object Value)> GetProperties()
     {
-        if (this.Level.HasValue) { yield return ("x", (uint)this.Level.Value); }
+        if (this.Level.HasValue) { yield return (ArchivePropName.Level, (uint)this.Level.Value); }
     }
 }

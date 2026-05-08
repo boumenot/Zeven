@@ -11,7 +11,7 @@ public class Lz4ArchiveCreateOptions : IArchiveCreateOptions
 
     public IEnumerable<(string Name, object Value)> GetProperties()
     {
-        if (this.Level.HasValue) { yield return ("x", (uint)this.Level.Value); }
-        if (this.NumThreads.HasValue) { yield return ("mt", (uint)this.NumThreads.Value); }
+        if (this.Level.HasValue) { yield return (ArchivePropName.Level, (uint)this.Level.Value); }
+        if (this.NumThreads.HasValue) { yield return (ArchivePropName.NumThreads, (uint)this.NumThreads.Value); }
     }
 }
