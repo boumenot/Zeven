@@ -245,12 +245,12 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
 }
 
 /// <summary>
-/// Archive creation callback with optional password support.
+/// Abstract base for archive creation callbacks.
+/// Consolidates shared progress, cancellation, password, and COM stream logic.
+/// Concrete subclasses provide item lookup, property filling, and stream creation.
 /// </summary>
-[GeneratedComClass]
-public partial class UpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPassword2
+public abstract class UpdateCallbackBase : IArchiveUpdateCallback, ICryptoGetTextPassword2
 {
-    private readonly List<(string Path, byte[] Data)> items;
     private readonly StrategyBasedComWrappers comWrappers;
     private readonly string? password;
     private readonly IProgress<ArchiveProgress>? progress;
@@ -258,12 +258,10 @@ public partial class UpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPass
     private ulong totalBytes;
     private readonly List<object> liveObjects = new();
 
-    public UpdateCallback(Dictionary<string, byte[]> files, StrategyBasedComWrappers cw,
-            string? password = null,
+    protected UpdateCallbackBase(StrategyBasedComWrappers cw, string? password = null,
             IProgress<ArchiveProgress>? progress = null,
             CancellationToken cancellationToken = default)
     {
-        this.items = files.Select(kv => (kv.Key, kv.Value)).ToList();
         this.comWrappers = cw;
         this.password = password;
         this.progress = progress;
@@ -295,41 +293,7 @@ public partial class UpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPass
         return 0;
     }
 
-    public int GetUpdateItemInfo(uint index, out int newData, out int newProps, out uint indexInArchive)
-    {
-        newData = 1;
-        newProps = 1;
-        indexInArchive = unchecked((uint)-1); // no existing item
-        return 0;
-    }
-
-    public int GetProperty(uint index, uint propID, ref PropVariant value)
-    {
-        value = default;
-        var (path, data) = this.items[(int)index];
-        long now = DateTime.UtcNow.ToFileTimeUtc();
-        var info = new ArchiveItemProperties(path, (ulong)data.Length,
-                0x20, now, now, now);
-        ArchiveItemProperties.FillProperty(propID, ref value, info);
-        return 0;
-    }
-
-    public int GetStream(uint index, out nint inStream)
-    {
-        var data = this.items[(int)index].Data;
-        var ms = new MemoryStream(data, writable: false);
-        var wrapper = new InStreamWrapper(ms);
-        this.liveObjects.Add(ms);
-        this.liveObjects.Add(wrapper);
-
-        nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
-        Guid iid = Iid.ISequentialInStream;
-        Marshal.QueryInterface(ccw, ref iid, out inStream);
-        Marshal.Release(ccw);
-        return 0;
-    }
-
-    public int SetOperationResult(int operationResult) => 0;
+    public virtual int SetOperationResult(int operationResult) => 0;
 
     public int CryptoGetTextPassword2(out int passwordIsDefined, out nint password)
     {
@@ -345,69 +309,101 @@ public partial class UpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPass
         }
         return 0;
     }
+
+    public abstract int GetUpdateItemInfo(uint index, out int newData, out int newProps,
+            out uint indexInArchive);
+
+    public abstract int GetProperty(uint index, uint propID, ref PropVariant value);
+
+    public abstract int GetStream(uint index, out nint inStream);
+
+    protected int CreateInStream(Stream stream, out nint inStream)
+    {
+        var wrapper = new InStreamWrapper(stream);
+        this.liveObjects.Add(stream);
+        this.liveObjects.Add(wrapper);
+
+        nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper,
+                CreateComInterfaceFlags.None);
+        Guid iid = Iid.ISequentialInStream;
+        Marshal.QueryInterface(ccw, ref iid, out inStream);
+        Marshal.Release(ccw);
+        return 0;
+    }
+}
+
+/// <summary>
+/// Archive creation callback with optional password support.
+/// </summary>
+[GeneratedComClass]
+public partial class UpdateCallback : UpdateCallbackBase
+{
+    private readonly List<(string Path, byte[] Data)> items;
+
+    public UpdateCallback(Dictionary<string, byte[]> files, StrategyBasedComWrappers cw,
+            string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+        : base(cw, password, progress, cancellationToken)
+    {
+        this.items = files.Select(kv => (kv.Key, kv.Value)).ToList();
+    }
+
+    public override int GetUpdateItemInfo(uint index, out int newData, out int newProps,
+            out uint indexInArchive)
+    {
+        newData = 1;
+        newProps = 1;
+        indexInArchive = unchecked((uint)-1);
+        return 0;
+    }
+
+    public override int GetProperty(uint index, uint propID, ref PropVariant value)
+    {
+        value = default;
+        var (path, data) = this.items[(int)index];
+        long now = DateTime.UtcNow.ToFileTimeUtc();
+        var info = new ArchiveItemProperties(path, (ulong)data.Length,
+                0x20, now, now, now);
+        ArchiveItemProperties.FillProperty(propID, ref value, info);
+        return 0;
+    }
+
+    public override int GetStream(uint index, out nint inStream)
+    {
+        var data = this.items[(int)index].Data;
+        return this.CreateInStream(new MemoryStream(data, writable: false), out inStream);
+    }
 }
 
 /// <summary>
 /// Archive creation callback that streams files from disk instead of memory.
 /// </summary>
 [GeneratedComClass]
-public partial class FileUpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPassword2
+public partial class FileUpdateCallback : UpdateCallbackBase
 {
     private readonly List<(string ArchiveName, string FilePath)> items;
-    private readonly StrategyBasedComWrappers comWrappers;
-    private readonly string? password;
-    private readonly IProgress<ArchiveProgress>? progress;
-    private readonly CancellationToken cancellationToken;
-    private ulong totalBytes;
-    private readonly List<object> liveObjects = new();
     private FileStream? currentFileStream;
 
     public FileUpdateCallback(Dictionary<string, string> files, StrategyBasedComWrappers cw,
             string? password = null,
             IProgress<ArchiveProgress>? progress = null,
             CancellationToken cancellationToken = default)
+        : base(cw, password, progress, cancellationToken)
     {
         this.items = files.Select(kv => (kv.Key, kv.Value)).ToList();
-        this.comWrappers = cw;
-        this.password = password;
-        this.progress = progress;
-        this.cancellationToken = cancellationToken;
     }
 
-    // IProgress
-    public int SetTotal(ulong total)
-    {
-        this.totalBytes = total;
-        return 0;
-    }
-
-    public int SetCompleted(nint completeValue)
-    {
-        if (this.cancellationToken.IsCancellationRequested)
-        {
-            return unchecked((int)0x80004004); // E_ABORT
-        }
-
-        if (this.progress != null && completeValue != nint.Zero)
-        {
-            unsafe
-            {
-                ulong completed = *(ulong*)completeValue;
-                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
-            }
-        }
-        return 0;
-    }
-
-    public int GetUpdateItemInfo(uint index, out int newData, out int newProps, out uint indexInArchive)
+    public override int GetUpdateItemInfo(uint index, out int newData, out int newProps,
+            out uint indexInArchive)
     {
         newData = 1;
         newProps = 1;
-        indexInArchive = unchecked((uint)-1); // no existing item
+        indexInArchive = unchecked((uint)-1);
         return 0;
     }
 
-    public int GetProperty(uint index, uint propID, ref PropVariant value)
+    public override int GetProperty(uint index, uint propID, ref PropVariant value)
     {
         value = default;
         var (archiveName, filePath) = this.items[(int)index];
@@ -421,42 +417,20 @@ public partial class FileUpdateCallback : IArchiveUpdateCallback, ICryptoGetText
         return 0;
     }
 
-    public int GetStream(uint index, out nint inStream)
+    public override int GetStream(uint index, out nint inStream)
     {
         var filePath = this.items[(int)index].FilePath;
         var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
         this.currentFileStream = fs;
-        var wrapper = new InStreamWrapper(fs);
-        this.liveObjects.Add(wrapper);
-
-        nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
-        Guid iid = Iid.ISequentialInStream;
-        Marshal.QueryInterface(ccw, ref iid, out inStream);
-        Marshal.Release(ccw);
-        return 0;
+        return this.CreateInStream(fs, out inStream);
     }
 
-    public int SetOperationResult(int operationResult)
+    public override int SetOperationResult(int operationResult)
     {
         if (this.currentFileStream != null)
         {
             this.currentFileStream.Dispose();
             this.currentFileStream = null;
-        }
-        return 0;
-    }
-
-    public int CryptoGetTextPassword2(out int passwordIsDefined, out nint password)
-    {
-        if (this.password != null)
-        {
-            passwordIsDefined = 1;
-            password = Marshal.StringToBSTR(this.password);
-        }
-        else
-        {
-            passwordIsDefined = 0;
-            password = nint.Zero;
         }
         return 0;
     }
@@ -688,16 +662,10 @@ internal record MergeItem
 /// Handles copy (unchanged), new, and replace semantics for 7-Zip's IArchiveUpdateCallback.
 /// </summary>
 [GeneratedComClass]
-internal partial class MergeUpdateCallback : IArchiveUpdateCallback, ICryptoGetTextPassword2
+internal partial class MergeUpdateCallback : UpdateCallbackBase
 {
     private readonly IInArchive sourceArchive;
-    private readonly StrategyBasedComWrappers comWrappers;
     private readonly List<MergeItem> outputItems;
-    private readonly string? password;
-    private readonly IProgress<ArchiveProgress>? progress;
-    private readonly CancellationToken cancellationToken;
-    private ulong totalBytes;
-    private readonly List<object> liveObjects = new();
     private FileStream? currentFileStream;
 
     public MergeUpdateCallback(IInArchive sourceArchive, StrategyBasedComWrappers cw,
@@ -705,54 +673,25 @@ internal partial class MergeUpdateCallback : IArchiveUpdateCallback, ICryptoGetT
             string? password = null,
             IProgress<ArchiveProgress>? progress = null,
             CancellationToken cancellationToken = default)
+        : base(cw, password, progress, cancellationToken)
     {
         this.sourceArchive = sourceArchive;
-        this.comWrappers = cw;
         this.outputItems = outputItems;
-        this.password = password;
-        this.progress = progress;
-        this.cancellationToken = cancellationToken;
     }
 
-    // IProgress
-    public int SetTotal(ulong total)
-    {
-        this.totalBytes = total;
-        return 0;
-    }
-
-    public int SetCompleted(nint completeValue)
-    {
-        if (this.cancellationToken.IsCancellationRequested)
-        {
-            return unchecked((int)0x80004004); // E_ABORT
-        }
-
-        if (this.progress != null && completeValue != nint.Zero)
-        {
-            unsafe
-            {
-                ulong completed = *(ulong*)completeValue;
-                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
-            }
-        }
-        return 0;
-    }
-
-    public int GetUpdateItemInfo(uint index, out int newData, out int newProps, out uint indexInArchive)
+    public override int GetUpdateItemInfo(uint index, out int newData, out int newProps,
+            out uint indexInArchive)
     {
         var item = this.outputItems[(int)index];
 
         if (item.DataSource != null || item.IsNew)
         {
-            // New or replaced item — provide new data and properties
             newData = 1;
             newProps = 1;
             indexInArchive = item.SourceIndex ?? unchecked((uint)-1);
         }
         else
         {
-            // Copy from source archive unchanged
             newData = 0;
             newProps = 0;
             indexInArchive = item.SourceIndex!.Value;
@@ -760,14 +699,13 @@ internal partial class MergeUpdateCallback : IArchiveUpdateCallback, ICryptoGetT
         return 0;
     }
 
-    public int GetProperty(uint index, uint propID, ref PropVariant value)
+    public override int GetProperty(uint index, uint propID, ref PropVariant value)
     {
         value = default;
         var item = this.outputItems[(int)index];
 
         if (item.DataSource != null || item.IsNew)
         {
-            // New or replaced item — fill properties from the item metadata
             long now = DateTime.UtcNow.ToFileTimeUtc();
             var info = new ArchiveItemProperties(item.Path!, (ulong)(item.Size ?? 0),
                     0x20, now, now, now);
@@ -775,78 +713,45 @@ internal partial class MergeUpdateCallback : IArchiveUpdateCallback, ICryptoGetT
         }
         else
         {
-            // Copy item — forward to source archive
             this.sourceArchive.GetProperty(item.SourceIndex!.Value, propID, ref value);
         }
         return 0;
     }
 
-    public int GetStream(uint index, out nint inStream)
+    public override int GetStream(uint index, out nint inStream)
     {
         var item = this.outputItems[(int)index];
         inStream = nint.Zero;
 
         if (item.DataSource == null)
         {
-            // Copy item — 7-Zip reads directly from source archive
             return 0;
         }
 
-        InStreamWrapper wrapper;
         switch (item.DataSource)
         {
             case byte[] bytes:
-            {
-                var ms = new MemoryStream(bytes, writable: false);
-                wrapper = new InStreamWrapper(ms);
-                this.liveObjects.Add(ms);
-                break;
-            }
+                return this.CreateInStream(new MemoryStream(bytes, writable: false),
+                        out inStream);
             case string filePath:
             {
                 var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
                 this.currentFileStream = fs;
-                wrapper = new InStreamWrapper(fs);
-                break;
+                return this.CreateInStream(fs, out inStream);
             }
             case Stream stream:
-            {
-                wrapper = new InStreamWrapper(stream);
-                break;
-            }
+                return this.CreateInStream(stream, out inStream);
             default:
                 return 0;
         }
-
-        this.liveObjects.Add(wrapper);
-        nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
-        Guid iid = Iid.ISequentialInStream;
-        Marshal.QueryInterface(ccw, ref iid, out inStream);
-        Marshal.Release(ccw);
-        return 0;
     }
 
-    public int SetOperationResult(int operationResult)
+    public override int SetOperationResult(int operationResult)
     {
         if (this.currentFileStream != null)
         {
             this.currentFileStream.Dispose();
             this.currentFileStream = null;
-        }
-        return 0;
-    }
-
-    public int CryptoGetTextPassword2(out int passwordIsDefined, out nint password)
-    {
-        if (this.password != null)
-        {
-            passwordIsDefined = 1;
-            password = Marshal.StringToBSTR(this.password);
-        }
-        else
-        {
-            passwordIsDefined = 0;
-            password = nint.Zero;
         }
         return 0;
     }
