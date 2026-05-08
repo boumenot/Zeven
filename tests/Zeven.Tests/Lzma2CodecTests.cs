@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Zeven.Core;
 using Zeven.Core.Interop;
 
@@ -35,7 +36,14 @@ public class Lzma2CodecTests
 
         nint encoder = lib.CreateEncoderObject((uint)index);
 
-        Assert.NotEqual(nint.Zero, encoder);
+        try
+        {
+            Assert.NotEqual(nint.Zero, encoder);
+        }
+        finally
+        {
+            Marshal.Release(encoder);
+        }
     }
 
     [Fact]
@@ -46,7 +54,14 @@ public class Lzma2CodecTests
 
         nint decoder = lib.CreateDecoderObject((uint)index);
 
-        Assert.NotEqual(nint.Zero, decoder);
+        try
+        {
+            Assert.NotEqual(nint.Zero, decoder);
+        }
+        finally
+        {
+            Marshal.Release(decoder);
+        }
     }
 
     [Fact]
