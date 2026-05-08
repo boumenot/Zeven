@@ -20,9 +20,9 @@ internal static class ZevenFormat
         output.Write(Magic);
 
         Span<byte> buf = stackalloc byte[12];
-        BinaryPrimitives.WriteUInt32LittleEndian(buf, (uint)codecId);
-        BinaryPrimitives.WriteUInt16LittleEndian(buf[4..], (ushort)propertyHeader.Length);
-        buf[6..].Clear();
+        BinaryPrimitives.WriteUInt64LittleEndian(buf, codecId);
+        BinaryPrimitives.WriteUInt16LittleEndian(buf[8..], (ushort)propertyHeader.Length);
+        buf[10..].Clear();
         output.Write(buf);
 
         output.Write(propertyHeader);
@@ -49,8 +49,8 @@ internal static class ZevenFormat
 
         Span<byte> buf = stackalloc byte[12];
         ReadExactly(input, buf);
-        ulong codecId = BinaryPrimitives.ReadUInt32LittleEndian(buf);
-        ushort propLen = BinaryPrimitives.ReadUInt16LittleEndian(buf[4..]);
+        ulong codecId = BinaryPrimitives.ReadUInt64LittleEndian(buf);
+        ushort propLen = BinaryPrimitives.ReadUInt16LittleEndian(buf[8..]);
 
         byte[] propertyHeader = new byte[propLen];
         ReadExactly(input, propertyHeader);

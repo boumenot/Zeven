@@ -93,7 +93,7 @@ public class PpmdCodecTests
         using var compressed = new MemoryStream();
         PpmdCodec.Compress(new MemoryStream([]), compressed);
 
-        // Header: 4 magic + 4 codecId + 2 propLen + 6 reserved + 5 props + 4 CRC = 25
+        // Header: 4 magic + 8 codecId + 2 propLen + 2 reserved + 5 props + 4 CRC = 25
         // EndMarker: 16 zeros = total 41
         Assert.Equal(41, compressed.Length);
 
@@ -620,5 +620,19 @@ public class ZevenFormatTests
         public ulong CodecId => 0xDEADBEEF;
         public int ChunkSize => 16 * 1024 * 1024;
         public Dictionary<uint, object> GetProperties() => new();
+    }
+
+    [Fact]
+    public void WriteHeader_ReadHeader_PreservesLargeCodecId()
+    {
+        ulong largeCodecId = 0x0123456789ABCDEF;
+        var props = new byte[] { 0xAA };
+        using var ms = new MemoryStream();
+        ZevenFormat.WriteHeader(ms, largeCodecId, props);
+
+        ms.Position = 0;
+        var header = ZevenFormat.ReadHeader(ms);
+
+        Assert.Equal(largeCodecId, header.CodecId);
     }
 }
