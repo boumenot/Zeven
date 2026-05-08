@@ -155,6 +155,87 @@ var data = handle.Extract([report.Index]);
 File.WriteAllBytes(@"C:\output\report.pdf", data[report.Index]);
 ```
 
+### Archive creation options
+
+Control compression level, method, threading, and encryption per format:
+
+```csharp
+// 7z with LZMA2 level 9, encrypted headers
+lib.CreateArchive("7z", output, files, new SevenZipCreateOptions
+{
+    Level = 9,
+    Method = "LZMA2",
+    Solid = true,
+    EncryptHeaders = true,
+    NumThreads = 4,
+}, password: "secret");
+
+// Zip with Deflate
+lib.CreateArchive("zip", output, files, new ZipCreateOptions
+{
+    Level = 6,
+    Method = "Deflate",
+});
+
+// GZip, BZip2, xz
+lib.CreateArchive("gzip", output, files, new GZipCreateOptions { Level = 9 });
+lib.CreateArchive("bzip2", output, files, new BZip2CreateOptions { Level = 5, NumPasses = 7 });
+lib.CreateArchive("xz", output, files, new XzCreateOptions { Level = 6, NumThreads = 2 });
+```
+
+Each format has its own typed options class implementing `IArchiveCreateOptions`.
+
+### Updating existing archives
+
+Add, replace, or delete entries in an existing archive:
+
+```csharp
+using var handle = lib.CreateInArchive("7z");
+handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
+
+using var updated = File.Create(@"C:\docs\backup-updated.7z");
+lib.UpdateArchive("7z", handle, updated, u => u
+    .Add("new-report.pdf", @"C:\docs\new-report.pdf")
+    .Replace("config.json", updatedConfigBytes)
+    .Delete("old-log.txt"));
+```
+
+The builder supports `byte[]`, file path, and `Stream` sources:
+
+```csharp
+lib.UpdateArchive("7z", handle, output, update =>
+{
+    update.Add("from-memory.txt", data);
+    update.Add("from-disk.txt", @"C:\path\to\file.txt");
+    update.Add("from-stream.bin", inputStream, size: streamLength);
+    update.Replace("existing.txt", newData);
+    update.Delete("unwanted.txt");
+});
+```
+
+> **Note:** 7-Zip always writes a complete new archive — it cannot modify in-place. The source archive must remain open during the update.
+
+### Progress and cancellation
+
+All archive operations support progress reporting and cancellation:
+
+```csharp
+var progress = new Progress<ArchiveProgress>(p =>
+    Console.WriteLine($"{p.CompletedBytes / 1024}KB / {p.TotalBytes / 1024}KB"));
+
+var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
+// Extract with progress and timeout
+handle.ExtractTo(@"C:\output", progress, cts.Token);
+
+// Create with progress
+lib.CreateArchive("7z", output, files, progress: progress);
+
+// Update with cancellation
+lib.UpdateArchive("7z", handle, output, u => u.Add("f.txt", data),
+    cancellationToken: cts.Token);
+```
+
 ## 7-Zip Native DLLs
 
 7-Zip ships several DLLs built from different source bundles. They all export the same COM factory function (`CreateObject`) but differ in which archive formats and codecs are compiled in.
