@@ -7,7 +7,7 @@ namespace Zeven.Tests;
 
 public class BrotliCodecTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     static BrotliCodecTests() => ZevenLibrary.Load(DllPath);
 
@@ -74,7 +74,7 @@ public class BrotliCodecTests
 
 public class BrotliStreamTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     static BrotliStreamTests() => ZevenLibrary.Load(DllPath);
 

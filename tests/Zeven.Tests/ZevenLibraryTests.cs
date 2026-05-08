@@ -4,7 +4,7 @@ namespace Zeven.Tests;
 
 public class ZevenLibraryTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     [Fact]
     public void Load_ReturnsInstanceWithFormats()

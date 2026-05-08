@@ -6,7 +6,7 @@ namespace Zeven.Tests;
 
 public class Lz4CodecTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     static Lz4CodecTests() => ZevenLibrary.Load(DllPath);
 
@@ -73,7 +73,7 @@ public class Lz4CodecTests
 
 public class Lz4StreamTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     static Lz4StreamTests() => ZevenLibrary.Load(DllPath);
 

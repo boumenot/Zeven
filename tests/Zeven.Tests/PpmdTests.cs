@@ -6,7 +6,7 @@ namespace Zeven.Tests;
 
 public class PpmdCodecTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     static PpmdCodecTests() => ZevenLibrary.Load(DllPath);
 
@@ -146,7 +146,7 @@ public class PpmdCodecTests
 
 public class PpmdStreamTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     static PpmdStreamTests() => ZevenLibrary.Load(DllPath);
 
@@ -581,7 +581,7 @@ public class ZevenFormatTests
     [Fact]
     public void CapturePropertyHeader_UnknownCodec_Throws()
     {
-        ZevenLibrary.Load(@"q:\Zeven\bin\7z.dll");
+        ZevenLibrary.Load(TestPaths.DllPath);
 
         var bogusOptions = new BogusCodecOptions();
         var ex = Assert.Throws<InvalidOperationException>(
@@ -593,7 +593,7 @@ public class ZevenFormatTests
     [Fact]
     public void DecompressBlock_UnknownCodec_Throws()
     {
-        ZevenLibrary.Load(@"q:\Zeven\bin\7z.dll");
+        ZevenLibrary.Load(TestPaths.DllPath);
 
         var ex = Assert.Throws<InvalidOperationException>(
             () => Codec.DecompressBlock(new byte[5], 0xDEADBEEF,
@@ -605,7 +605,7 @@ public class ZevenFormatTests
     [Fact]
     public void CompressBlock_UnknownCodec_Throws()
     {
-        ZevenLibrary.Load(@"q:\Zeven\bin\7z.dll");
+        ZevenLibrary.Load(TestPaths.DllPath);
 
         var bogusOptions = new BogusCodecOptions();
         var ex = Assert.Throws<InvalidOperationException>(
