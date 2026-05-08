@@ -68,16 +68,26 @@ internal static class Codec
             var propIds = stackalloc uint[props.Count];
             var propVals = stackalloc PropVariant[props.Count];
 
-            int i = 0;
-            foreach (var (propId, value) in props)
+            int allocatedCount = 0;
+            try
             {
-                propIds[i] = propId;
-                propVals[i] = PropVariant.FromObject(value);
-                i++;
-            }
+                foreach (var (propId, value) in props)
+                {
+                    propIds[allocatedCount] = propId;
+                    propVals[allocatedCount] = PropVariant.FromObject(value);
+                    allocatedCount++;
+                }
 
-            int hr = setProps.SetCoderProperties((nint)propIds, (nint)propVals, (uint)props.Count);
-            Marshal.ThrowExceptionForHR(hr);
+                int hr = setProps.SetCoderProperties((nint)propIds, (nint)propVals, (uint)props.Count);
+                Marshal.ThrowExceptionForHR(hr);
+            }
+            finally
+            {
+                for (int j = 0; j < allocatedCount; j++)
+                {
+                    propVals[j].FreeBstr();
+                }
+            }
         }
     }
 
