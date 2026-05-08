@@ -308,9 +308,9 @@ public sealed class ZevenLibrary : IDisposable
         var outputItems = new List<MergeItem>();
 
         // Collect paths targeted for delete or replace
-        var deletePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var deletePaths = new HashSet<string>(StringComparer.Ordinal);
         var replacements = new Dictionary<string, (object? Source, long? Size)>(
-                StringComparer.OrdinalIgnoreCase);
+                StringComparer.Ordinal);
 
         foreach (var op in builder.operations)
         {

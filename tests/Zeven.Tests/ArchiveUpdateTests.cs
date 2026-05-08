@@ -290,4 +290,31 @@ public class ArchiveUpdateTests
         Assert.Single(extracted);
         Assert.Equal("v2 from stream", System.Text.Encoding.UTF8.GetString(extracted["config.txt"]));
     }
+
+    [Fact]
+    public void UpdateArchive_Replace_UsesExactPathMatch()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["File.txt"] = "original"u8.ToArray(),
+        };
+        using var initial = new MemoryStream();
+        lib.CreateArchive("7z", initial, files);
+
+        initial.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(initial);
+
+        using var updated = new MemoryStream();
+        lib.UpdateArchive("7z", handle, updated, u => u
+            .Replace("File.txt", "updated"u8.ToArray()));
+
+        updated.Position = 0;
+        using var verify = lib.CreateInArchive("7z");
+        verify.Open(updated);
+        var extracted = verify.ExtractAll();
+        Assert.Single(extracted);
+        Assert.Equal("updated", System.Text.Encoding.UTF8.GetString(extracted["File.txt"]));
+    }
 }
