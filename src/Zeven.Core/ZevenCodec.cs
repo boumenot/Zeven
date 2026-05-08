@@ -7,6 +7,11 @@ public static class ZevenCodec
 {
     public static void Compress(Stream input, Stream output, ICodecOptions options)
     {
+        if (!input.CanSeek)
+        {
+            throw new ArgumentException("Input stream must be seekable.", nameof(input));
+        }
+
         byte[] propertyHeader = Codec.CapturePropertyHeader(options);
         ZevenFormat.WriteHeader(output, options.CodecId, propertyHeader);
 
