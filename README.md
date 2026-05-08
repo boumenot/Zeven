@@ -151,8 +151,7 @@ Console.WriteLine($"Modified: {report.ModifiedTime}");
 Console.WriteLine($"Compressed: {report.PackedSize:N0} bytes");
 
 // Extract just that one file
-var data = handle.Extract([report.Index]);
-File.WriteAllBytes(@"C:\output\report.pdf", data[report.Index]);
+File.WriteAllBytes(@"C:\output\report.pdf", handle.Extract("report.pdf"));
 ```
 
 ### Archive creation options
