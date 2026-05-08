@@ -29,6 +29,7 @@ public class ProgressTests
 
         Assert.NotEmpty(progress.Reports);
         Assert.True(progress.Reports[0].TotalBytes > 0);
+        Assert.NotNull(progress.Reports.Last().CurrentPath);
     }
 
     [Fact]

@@ -131,6 +131,7 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
     private readonly CancellationToken cancellationToken;
     private ulong totalBytes;
     private uint currentIndex;
+    private string? currentPath;
     private MemoryStream? currentStream;
     private readonly List<object> liveObjects = new();
 
@@ -171,7 +172,7 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
             unsafe
             {
                 ulong completed = *(ulong*)completeValue;
-                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
+                this.progress.Report(new ArchiveProgress(this.totalBytes, completed, this.currentPath, this.currentIndex));
             }
         }
         return 0;
@@ -183,6 +184,12 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
         this.currentIndex = index;
         this.currentStream = null;
         outStream = nint.Zero;
+
+        // Capture current entry path for progress reporting
+        PropVariant pvPath = default;
+        this.archive.GetProperty(index, PropId.kpidPath, ref pvPath);
+        this.currentPath = pvPath.GetBstr();
+        NativeMethods.PropVariantClear(ref pvPath);
 
         // Only create output stream for actual extraction (not test/skip)
         if (askExtractMode != 0) // 0 = kExtract
@@ -259,6 +266,7 @@ public partial class StreamTargetExtractCallback : IArchiveExtractCallback, ICry
     private readonly IProgress<ArchiveProgress>? progress;
     private readonly CancellationToken cancellationToken;
     private ulong totalBytes;
+    private string? currentPath;
     private readonly List<object> liveObjects = new();
 
     public List<ExtractionFailure> Failures { get; } = new();
@@ -295,7 +303,7 @@ public partial class StreamTargetExtractCallback : IArchiveExtractCallback, ICry
             unsafe
             {
                 ulong completed = *(ulong*)completeValue;
-                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
+                this.progress.Report(new ArchiveProgress(this.totalBytes, completed, this.currentPath, this.targetIndex));
             }
         }
         return 0;
@@ -309,6 +317,12 @@ public partial class StreamTargetExtractCallback : IArchiveExtractCallback, ICry
         {
             return 0;
         }
+
+        // Capture current entry path for progress reporting
+        PropVariant pvPath = default;
+        this.archive.GetProperty(index, PropId.kpidPath, ref pvPath);
+        this.currentPath = pvPath.GetBstr();
+        NativeMethods.PropVariantClear(ref pvPath);
 
         var wrapper = new OutStreamWrapper(this.output);
         this.liveObjects.Add(wrapper);
@@ -549,6 +563,7 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
     private readonly CancellationToken cancellationToken;
     private ulong totalBytes;
     private uint currentIndex;
+    private string? currentPath;
     private FileStream? currentFileStream;
     private readonly List<object> liveObjects = new();
 
@@ -587,7 +602,7 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
             unsafe
             {
                 ulong completed = *(ulong*)completeValue;
-                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
+                this.progress.Report(new ArchiveProgress(this.totalBytes, completed, this.currentPath, this.currentIndex));
             }
         }
         return 0;
@@ -610,6 +625,7 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
         PropVariant pvPath = default;
         this.archive.GetProperty(index, PropId.kpidPath, ref pvPath);
         string? itemPath = pvPath.GetBstr();
+        this.currentPath = itemPath;
         NativeMethods.PropVariantClear(ref pvPath);
 
         if (string.IsNullOrEmpty(itemPath))
