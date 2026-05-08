@@ -416,9 +416,9 @@ Requires .NET 10 SDK and a copy of `7z.dll` (from 7-Zip installer) at the config
 
 ### Brotli
 
-The standalone Brotli archive handler does not forward the `mt` (multithreading) property via `ISetProperties`, even though the underlying Brotli codec supports `ICompressSetCoderMt`. As a result, `BrotliArchiveCreateOptions` does not expose a `NumThreads` option. Threaded Brotli compression is available through the codec API (`BrotliCodec` / `BrotliStream`), which uses the codec directly and bypasses the archive handler.
+The standalone Brotli archive handler (`.br`) forces single-threaded encoding. This is intentional — brotli-mt produces non-standard multi-threaded framing that standard Brotli decoders (including browsers) cannot read. The 7-Zip-zstd encoder explicitly calls `SetNumberOfThreads(0)` to ensure `.br` output is universally compatible.
 
-A potential fix would be to modify the 7-Zip-zstd Brotli archive handler to forward `mt` to the codec, but this requires changes to the native C++ source.
+As a result, `BrotliArchiveCreateOptions` does not expose a `NumThreads` option. The underlying Brotli codec does support `ICompressSetCoderMt`, and threaded Brotli compression is available through the codec API (`BrotliCodec` / `BrotliStream`), but the output uses Zeven's chunked format rather than the `.br` archive format.
 
 ### LZMA2 zero-copy streaming compress
 
