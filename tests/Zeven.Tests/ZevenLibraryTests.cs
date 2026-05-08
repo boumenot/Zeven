@@ -25,4 +25,13 @@ public class ZevenLibraryTests
 
         Assert.NotNull(archive);
     }
+
+    [Fact]
+    public void Load_SamePath_ReturnsSameInstance()
+    {
+        var lib1 = ZevenLibrary.Load(DllPath);
+        var lib2 = ZevenLibrary.Load(DllPath);
+
+        Assert.Same(lib1, lib2);
+    }
 }

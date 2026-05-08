@@ -19,6 +19,7 @@ public sealed class ZevenLibrary : IDisposable
     private static ZevenLibrary? instance;
     private static readonly Lock syncLock = new();
 
+    private readonly string loadedPath;
     private readonly nint lib;
     private readonly CreateObjectFunc createObject;
     private readonly CreateEncoderFunc createEncoder;
@@ -32,6 +33,7 @@ public sealed class ZevenLibrary : IDisposable
 
     private ZevenLibrary(string dllPath)
     {
+        this.loadedPath = dllPath;
         this.lib = NativeLibrary.Load(dllPath);
 
         this.createObject = Marshal.GetDelegateForFunctionPointer<CreateObjectFunc>(
@@ -63,6 +65,13 @@ public sealed class ZevenLibrary : IDisposable
         {
             if (instance != null)
             {
+                string requestedPath = Path.GetFullPath(dllPath);
+                if (!instance.loadedPath.Equals(requestedPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"ZevenLibrary is already loaded from '{instance.loadedPath}'. " +
+                        $"Cannot load from '{requestedPath}'.");
+                }
                 return instance;
             }
             instance = new ZevenLibrary(Path.GetFullPath(dllPath));
