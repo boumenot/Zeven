@@ -671,6 +671,57 @@ public sealed class ArchiveHandle : IDisposable
         return data[entry.Index];
     }
 
+    /// <summary>
+    /// Extract a single file by path directly to an output stream.
+    /// The entry is never buffered in memory — data flows straight from
+    /// the archive decoder to the output stream.
+    /// </summary>
+    public void ExtractTo(string path, Stream output,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+    {
+        var entry = this.Entries.FirstOrDefault(e => e.Path == path)
+            ?? throw new KeyNotFoundException($"Entry '{path}' not found in archive.");
+
+        var callback = new StreamTargetExtractCallback(
+                this.Archive, this.ComWrappers, entry.Index, output, this.password,
+                progress, cancellationToken);
+
+        var cw = this.ComWrappers;
+        nint callbackCcw = cw.GetOrCreateComInterfaceForObject(callback, CreateComInterfaceFlags.None);
+        Guid iidExtractCb = Iid.IArchiveExtractCallback;
+        Marshal.QueryInterface(callbackCcw, ref iidExtractCb, out nint callbackPtr);
+
+        unsafe
+        {
+            var indices = new uint[] { entry.Index };
+            fixed (uint* pIdx = indices)
+            {
+                int hr = this.Archive.Extract((nint)pIdx, 1, 0, callbackPtr);
+
+                if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
+                Marshal.Release(callbackCcw);
+                GC.KeepAlive(callback);
+
+                try
+                {
+                    Marshal.ThrowExceptionForHR(hr);
+                }
+                catch (COMException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
+            }
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (callback.Failures.Count > 0)
+        {
+            throw new ArchiveExtractionException(callback.Failures);
+        }
+    }
+
     /// <summary>Test archive integrity (extract in verify-only mode).</summary>
     public void Test(IProgress<ArchiveProgress>? progress = null,
             CancellationToken cancellationToken = default)

@@ -152,6 +152,10 @@ Console.WriteLine($"Compressed: {report.PackedSize:N0} bytes");
 
 // Extract just that one file
 File.WriteAllBytes(@"C:\output\report.pdf", handle.Extract("report.pdf"));
+
+// Stream directly to a file — no memory buffering
+using var outputFile = File.Create(@"C:\output\large-log.txt");
+handle.ExtractTo("logs/large-log.txt", outputFile);
 ```
 
 ### Archive creation options

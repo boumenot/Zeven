@@ -245,6 +245,105 @@ public partial class ExtractCallback : IArchiveExtractCallback, ICryptoGetTextPa
 }
 
 /// <summary>
+/// Extraction callback that writes a single entry directly to a caller-provided stream.
+/// No memory buffering — data flows from the archive decoder to the output stream.
+/// </summary>
+[GeneratedComClass]
+public partial class StreamTargetExtractCallback : IArchiveExtractCallback, ICryptoGetTextPassword
+{
+    private readonly IInArchive archive;
+    private readonly StrategyBasedComWrappers comWrappers;
+    private readonly uint targetIndex;
+    private readonly Stream output;
+    private readonly string? password;
+    private readonly IProgress<ArchiveProgress>? progress;
+    private readonly CancellationToken cancellationToken;
+    private ulong totalBytes;
+    private readonly List<object> liveObjects = new();
+
+    public List<ExtractionFailure> Failures { get; } = new();
+
+    public StreamTargetExtractCallback(IInArchive archive, StrategyBasedComWrappers cw,
+            uint targetIndex, Stream output, string? password = null,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+    {
+        this.archive = archive;
+        this.comWrappers = cw;
+        this.targetIndex = targetIndex;
+        this.output = output;
+        this.password = password;
+        this.progress = progress;
+        this.cancellationToken = cancellationToken;
+    }
+
+    public int SetTotal(ulong total)
+    {
+        this.totalBytes = total;
+        return 0;
+    }
+
+    public int SetCompleted(nint completeValue)
+    {
+        if (this.cancellationToken.IsCancellationRequested)
+        {
+            return unchecked((int)0x80004004);
+        }
+
+        if (this.progress != null && completeValue != nint.Zero)
+        {
+            unsafe
+            {
+                ulong completed = *(ulong*)completeValue;
+                this.progress.Report(new ArchiveProgress(this.totalBytes, completed));
+            }
+        }
+        return 0;
+    }
+
+    public int GetStream(uint index, out nint outStream, int askExtractMode)
+    {
+        outStream = nint.Zero;
+
+        if (askExtractMode != 0 || index != this.targetIndex)
+        {
+            return 0;
+        }
+
+        var wrapper = new OutStreamWrapper(this.output);
+        this.liveObjects.Add(wrapper);
+
+        nint ccw = this.comWrappers.GetOrCreateComInterfaceForObject(wrapper, CreateComInterfaceFlags.None);
+        Guid iid = Iid.ISequentialOutStream;
+        Marshal.QueryInterface(ccw, ref iid, out outStream);
+        Marshal.Release(ccw);
+        return 0;
+    }
+
+    public int PrepareOperation(int askExtractMode) => 0;
+
+    public int SetOperationResult(int opRes)
+    {
+        if (opRes != 0)
+        {
+            this.Failures.Add(new ExtractionFailure(this.targetIndex, (ExtractionResult)opRes));
+        }
+        return 0;
+    }
+
+    public int CryptoGetTextPassword(out nint password)
+    {
+        if (this.password == null)
+        {
+            password = nint.Zero;
+            return unchecked((int)0x80004004);
+        }
+        password = Marshal.StringToBSTR(this.password);
+        return 0;
+    }
+}
+
+/// <summary>
 /// Abstract base for archive creation callbacks.
 /// Consolidates shared progress, cancellation, password, and COM stream logic.
 /// Concrete subclasses provide item lookup, property filling, and stream creation.
