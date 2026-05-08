@@ -28,21 +28,27 @@ internal static class ArchiveOptions
                 var names = stackalloc nint[props.Count];
                 var values = stackalloc PropVariant[props.Count];
 
-                for (int i = 0; i < props.Count; i++)
+                int allocatedCount = 0;
+                try
                 {
-                    names[i] = Marshal.StringToBSTR(props[i].Name);
-                    values[i] = PropVariant.FromObject(props[i].Value);
+                    for (int i = 0; i < props.Count; i++)
+                    {
+                        names[i] = Marshal.StringToBSTR(props[i].Name);
+                        values[i] = PropVariant.FromObject(props[i].Value);
+                        allocatedCount = i + 1;
+                    }
+
+                    int hr = setProps.SetProperties((nint)names, (nint)values, (uint)props.Count);
+                    Marshal.ThrowExceptionForHR(hr);
                 }
-
-                int hr = setProps.SetProperties((nint)names, (nint)values, (uint)props.Count);
-
-                for (int i = 0; i < props.Count; i++)
+                finally
                 {
-                    Marshal.FreeBSTR(names[i]);
-                    values[i].FreeBstr();
+                    for (int i = 0; i < allocatedCount; i++)
+                    {
+                        Marshal.FreeBSTR(names[i]);
+                        values[i].FreeBstr();
+                    }
                 }
-
-                Marshal.ThrowExceptionForHR(hr);
             }
         }
         finally
