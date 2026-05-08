@@ -12,6 +12,11 @@ public static class ZevenCodec
             throw new ArgumentException("Input stream must be seekable.", nameof(input));
         }
 
+        if (options.ChunkSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "ChunkSize must be positive.");
+        }
+
         byte[] propertyHeader = Codec.CapturePropertyHeader(options);
         ZevenFormat.WriteHeader(output, options.CodecId, propertyHeader);
 
