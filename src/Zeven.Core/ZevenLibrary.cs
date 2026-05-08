@@ -164,7 +164,10 @@ public sealed class ZevenLibrary : IDisposable
 
         try
         {
-            options?.Apply(ptr, this.comWrappers);
+            if (options != null)
+            {
+                ArchiveOptions.ApplyProperties(ptr, this.comWrappers, options.GetProperties().ToList());
+            }
 
             var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
 
@@ -219,7 +222,10 @@ public sealed class ZevenLibrary : IDisposable
 
         try
         {
-            options?.Apply(ptr, this.comWrappers);
+            if (options != null)
+            {
+                ArchiveOptions.ApplyProperties(ptr, this.comWrappers, options.GetProperties().ToList());
+            }
 
             var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(ptr, CreateObjectFlags.UniqueInstance);
 
@@ -393,7 +399,10 @@ public sealed class ZevenLibrary : IDisposable
 
         try
         {
-            options?.Apply(outArchivePtr, this.comWrappers);
+            if (options != null)
+            {
+                ArchiveOptions.ApplyProperties(outArchivePtr, this.comWrappers, options.GetProperties().ToList());
+            }
 
             var outArchive = (IOutArchive)this.comWrappers.GetOrCreateObjectForComInstance(
                     outArchivePtr, CreateObjectFlags.UniqueInstance);

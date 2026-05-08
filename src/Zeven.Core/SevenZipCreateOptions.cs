@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices.Marshalling;
-
 namespace Zeven.Core;
 
 /// <summary>Options for .7z archive creation.</summary>
@@ -20,14 +18,12 @@ public class SevenZipCreateOptions : IArchiveCreateOptions
     /// <summary>Encrypt file names in addition to content.</summary>
     public bool? EncryptHeaders { get; init; }
 
-    public void Apply(nint archivePtr, StrategyBasedComWrappers cw)
+    public IEnumerable<(string Name, object Value)> GetProperties()
     {
-        var props = new List<(string Name, object Value)>();
-        if (this.Level.HasValue) { props.Add(("x", (uint)this.Level.Value)); }
-        if (this.Method != null) { props.Add(("0", this.Method)); }
-        if (this.Solid.HasValue) { props.Add(("s", this.Solid.Value)); }
-        if (this.NumThreads.HasValue) { props.Add(("mt", (uint)this.NumThreads.Value)); }
-        if (this.EncryptHeaders.HasValue) { props.Add(("he", this.EncryptHeaders.Value)); }
-        ArchiveOptions.ApplyProperties(archivePtr, cw, props);
+        if (this.Level.HasValue) { yield return ("x", (uint)this.Level.Value); }
+        if (this.Method != null) { yield return ("0", this.Method); }
+        if (this.Solid.HasValue) { yield return ("s", this.Solid.Value); }
+        if (this.NumThreads.HasValue) { yield return ("mt", (uint)this.NumThreads.Value); }
+        if (this.EncryptHeaders.HasValue) { yield return ("he", this.EncryptHeaders.Value); }
     }
 }

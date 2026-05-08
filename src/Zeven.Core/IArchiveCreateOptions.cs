@@ -1,13 +1,15 @@
-using System.Runtime.InteropServices.Marshalling;
-
 namespace Zeven.Core;
 
 /// <summary>
-/// Interface for archive creation options. Each format implements this
-/// with its own typed properties and marshals them via Apply().
+/// Options for archive creation. Implementations return property name/value
+/// pairs that are passed to 7-Zip's ISetProperties interface.
 /// </summary>
 public interface IArchiveCreateOptions
 {
-    /// <summary>Apply these options to the archive handler via ISetProperties.</summary>
-    void Apply(nint archivePtr, StrategyBasedComWrappers cw);
+    /// <summary>
+    /// Returns the archive properties as name/value pairs.
+    /// Names follow 7-Zip's property naming (e.g., "x" for level, "0" for method).
+    /// Values can be uint, string, bool, or ulong.
+    /// </summary>
+    IEnumerable<(string Name, object Value)> GetProperties();
 }

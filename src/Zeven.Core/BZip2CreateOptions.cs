@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices.Marshalling;
-
 namespace Zeven.Core;
 
 /// <summary>Options for bzip2 archive creation.</summary>
@@ -11,11 +9,9 @@ public class BZip2CreateOptions : IArchiveCreateOptions
         /// <summary>Number of passes for compression.</summary>
         public int? NumPasses { get; init; }
 
-        public void Apply(nint archivePtr, StrategyBasedComWrappers cw)
+        public IEnumerable<(string Name, object Value)> GetProperties()
         {
-                var props = new List<(string Name, object Value)>();
-                if (this.Level.HasValue) { props.Add(("x", (uint)this.Level.Value)); }
-                if (this.NumPasses.HasValue) { props.Add(("pass", (uint)this.NumPasses.Value)); }
-                ArchiveOptions.ApplyProperties(archivePtr, cw, props);
+                if (this.Level.HasValue) { yield return ("x", (uint)this.Level.Value); }
+                if (this.NumPasses.HasValue) { yield return ("pass", (uint)this.NumPasses.Value); }
         }
 }
