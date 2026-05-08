@@ -519,3 +519,9 @@ As a result, `BrotliArchiveCreateOptions` does not expose a `NumThreads` option.
 ### LZMA2 zero-copy streaming compress
 
 LZMA2 is the only 7-Zip encoder that implements `ISequentialOutStream`, which would allow true push-based incremental compression without chunking or buffering. The current implementation uses chunking for consistency with the other codecs, but a future `Lzma2Stream` variant could leverage this for lower memory usage and latency on the compress path.
+
+## License
+
+Zeven is licensed under the [MIT License](LICENSE).
+
+**7-Zip notice:** Zeven dynamically loads `7z.dll` at runtime but does not include or distribute it. 7-Zip is licensed under [LGPL-2.1](https://www.7-zip.org/license.txt) with portions under BSD-3-Clause and the unRAR restriction. [7-Zip-zstd](https://github.com/nicehash/7-Zip-zstd) is also LGPL-2.1. Users are responsible for complying with 7-Zip's license when distributing `7z.dll` alongside their applications.
