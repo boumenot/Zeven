@@ -98,6 +98,41 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
     }
 
     [Fact]
+    public void Extract_ByPath_ReturnsContent()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]>
+        {
+            ["a.txt"] = "AAA"u8.ToArray(),
+            ["b.txt"] = "BBB"u8.ToArray(),
+        };
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files);
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(ms);
+
+        var content = handle.Extract("b.txt");
+        Assert.Equal("BBB", System.Text.Encoding.UTF8.GetString(content));
+    }
+
+    [Fact]
+    public void Extract_ByPath_NotFound_Throws()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]> { ["a.txt"] = "A"u8.ToArray() };
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files);
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(ms);
+
+        Assert.Throws<KeyNotFoundException>(() => handle.Extract("nonexistent.txt"));
+    }
+
+    [Fact]
     public void ExtractAll_ValidArchive_NoExceptions()
     {
         using var lib = ZevenLibrary.Load(DllPath);

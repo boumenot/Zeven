@@ -660,6 +660,17 @@ public sealed class ArchiveHandle : IDisposable
         return callback.ExtractedData;
     }
 
+    /// <summary>Extract a single file by path. Returns the file content as a byte array.</summary>
+    public byte[] Extract(string path,
+            IProgress<ArchiveProgress>? progress = null,
+            CancellationToken cancellationToken = default)
+    {
+        var entry = this.Entries.FirstOrDefault(e => e.Path == path)
+            ?? throw new KeyNotFoundException($"Entry '{path}' not found in archive.");
+        var data = this.Extract([entry.Index], progress, cancellationToken);
+        return data[entry.Index];
+    }
+
     /// <summary>Test archive integrity (extract in verify-only mode).</summary>
     public void Test(IProgress<ArchiveProgress>? progress = null,
             CancellationToken cancellationToken = default)
