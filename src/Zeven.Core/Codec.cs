@@ -76,7 +76,8 @@ internal static class Codec
                 i++;
             }
 
-            setProps.SetCoderProperties((nint)propIds, (nint)propVals, (uint)props.Count);
+            int hr = setProps.SetCoderProperties((nint)propIds, (nint)propVals, (uint)props.Count);
+            Marshal.ThrowExceptionForHR(hr);
         }
     }
 
@@ -133,7 +134,8 @@ internal static class Codec
 
                     try
                     {
-                        writeProps.WriteCoderProperties(outPtr);
+                        int hr = writeProps.WriteCoderProperties(outPtr);
+                        Marshal.ThrowExceptionForHR(hr);
                     }
                     finally
                     {
@@ -238,8 +240,9 @@ internal static class Codec
                     {
                         fixed (byte* pProps = propertyHeader)
                         {
-                            setDecProps.SetDecoderProperties2(
+                            int hr = setDecProps.SetDecoderProperties2(
                                 (nint)pProps, (uint)propertyHeader.Length);
+                            Marshal.ThrowExceptionForHR(hr);
                         }
                     }
                 }
