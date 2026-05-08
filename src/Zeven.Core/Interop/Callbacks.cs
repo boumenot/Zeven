@@ -473,7 +473,8 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
     {
         this.archive = archive;
         this.comWrappers = cw;
-        this.baseDirectory = Path.GetFullPath(baseDirectory) + Path.DirectorySeparatorChar;
+        this.baseDirectory = Path.GetFullPath(baseDirectory).TrimEnd(Path.DirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
         this.password = password;
         this.progress = progress;
         this.cancellationToken = cancellationToken;
