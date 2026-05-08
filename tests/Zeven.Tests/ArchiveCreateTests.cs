@@ -192,6 +192,44 @@ public class ArchiveCreateTests
             () => DirectoryExtractCallback.ValidatePathInternal(@"C:\output\", @"C:\Windows\evil.exe"));
     }
 
+    [Fact]
+    public void ExtractTo_TraversalPath_BlockedEndToEnd()
+    {
+        // Craft a zip with a malicious "../escape.txt" entry using System.IO.Compression
+        using var zipStream = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(
+                zipStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var entry = zip.CreateEntry("../escape.txt");
+            using var writer = new StreamWriter(entry.Open());
+            writer.Write("escaped!");
+        }
+
+        var tempDir = Path.Combine(Path.GetTempPath(),
+                "zeven_zipslip_" + Guid.NewGuid().ToString("N")[..8]);
+        var extractDir = Path.Combine(tempDir, "target");
+        var escapePath = Path.GetFullPath(Path.Combine(extractDir, "../escape.txt"));
+
+        try
+        {
+            using var lib = ZevenLibrary.Load(DllPath);
+            zipStream.Position = 0;
+            using var handle = lib.CreateInArchive(FormatClsid.Zip);
+            handle.Open(zipStream);
+
+            // ExtractTo must reject the traversal path
+            Assert.ThrowsAny<Exception>(() => handle.ExtractTo(extractDir));
+
+            // The escaped file must not exist
+            Assert.False(File.Exists(escapePath),
+                    "Zip Slip: file was written outside the target directory.");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) { Directory.Delete(tempDir, true); }
+        }
+    }
+
     [Theory]
     [InlineData(1, null, null, null, null)]
     [InlineData(9, "LZMA2", true, 4, null)]
