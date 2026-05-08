@@ -4,6 +4,12 @@ A .NET 10 registration-free COM interop wrapper for 7-Zip's native DLLs, using s
 
 No COM registration, no IDL, no type libraries — just P/Invoke `CreateObject` + source-generated vtable proxies.
 
+## Prerequisites
+
+- **.NET 10 SDK**
+- **7z.dll** — from the [7-Zip installer](https://7-zip.org/) (`C:\Program Files\7-Zip\7z.dll`). Supports all archive formats.
+- For **Zstd, Brotli, LZ4** codec support, use `7z.dll` from [7-Zip-zstd](https://github.com/nicehash/7-Zip-zstd) instead of stock 7-Zip.
+
 ## Quick Start
 
 ### Batch compress and decompress
@@ -68,8 +74,8 @@ using var archive = File.Create(@"C:\docs\backup.7z");
 lib.CreateArchive("7z", archive, files);
 
 // Extract to a directory
-using var handle = lib.CreateInArchive("7z");
-handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
+using var input = File.OpenRead(@"C:\docs\backup.7z");
+using var handle = lib.OpenArchive("7z", input);
 handle.ExtractTo(@"C:\output");
 ```
 
@@ -83,9 +89,12 @@ var files = new Dictionary<string, byte[]>
 {
     ["hello.txt"] = "Hello, World!"u8.ToArray(),
 };
+using var output = new MemoryStream();
 lib.CreateArchive("7z", output, files);
 
-// Extract to memory
+// Read back
+output.Position = 0;
+using var handle = lib.OpenArchive("7z", output);
 var extracted = handle.ExtractAll(); // Dictionary<string, byte[]>
 ```
 
@@ -426,10 +435,10 @@ Many codecs also lack end-of-stream markers — the decoder must be told the exa
 ```
 Stream header (16 bytes fixed + N property + 4 CRC):
   [4 bytes magic: "ZVN\x01"]               Zeven format v1
-  [4 bytes codec ID, LE]                   7-Zip codec ID (e.g., 0x030401 = PPMd)
+  [8 bytes codec ID, LE]                   7-Zip codec ID (e.g., 0x030401 = PPMd)
   [2 bytes property header length, LE]     Size of property data (varies by codec; stored
                                            so the format is self-describing)
-  [6 bytes reserved, zero]                 Future use
+  [2 bytes reserved, zero]                 Future use
   [N bytes property header]                Codec-specific properties
   [4 bytes CRC32, LE]                      IEEE CRC-32 of property header
 
@@ -455,7 +464,7 @@ var stream = new ZstdStream(output, CompressionMode.Compress);
 var options = new ZstdOptions { ChunkSize = 1 * 1024 * 1024 };
 var stream = new ZstdStream(output, CompressionMode.Compress, options);
 
-// Batch codecs always write a single chunk (entire input)
+// Batch codecs also chunk using options.ChunkSize
 ZstdCodec.Compress(input, output);
 ```
 
@@ -487,15 +496,21 @@ The chunk buffer is rented from `ArrayPool<byte>` to avoid LOH allocations. Code
 
 ```
 dotnet build
-dotnet test Tests
-dotnet run
+dotnet test tests\Zeven.Tests
 ```
 
-Requires .NET 10 SDK and a copy of `7z.dll` (from 7-Zip installer) at the configured path.
+Requires .NET 10 SDK and a copy of `7z.dll` at the configured path.
 
-## TODO
+Set `ZEVEN_7Z_DLL_PATH` to override the default DLL location for tests:
 
-### Brotli
+```
+set ZEVEN_7Z_DLL_PATH=C:\Program Files\7-Zip\7z.dll
+dotnet test tests\Zeven.Tests
+```
+
+## Development Notes
+
+### Brotli single-threaded encoding
 
 The standalone Brotli archive handler (`.br`) forces single-threaded encoding. This is intentional — brotli-mt produces non-standard multi-threaded framing that standard Brotli decoders (including browsers) cannot read. The 7-Zip-zstd encoder explicitly calls `SetNumberOfThreads(0)` to ensure `.br` output is universally compatible.
 
