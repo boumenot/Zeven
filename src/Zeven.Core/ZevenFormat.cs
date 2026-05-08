@@ -13,6 +13,9 @@ internal static class ZevenFormat
     /// <summary>Maximum compressed chunk size to prevent malicious streams from forcing huge allocations.</summary>
     private const long MaxCompressedChunkSize = 256 * 1024 * 1024; // 256 MB
 
+    /// <summary>Maximum uncompressed chunk size to prevent decompression bombs.</summary>
+    private const long MaxUncompressedChunkSize = 1024 * 1024 * 1024; // 1 GB
+
     /// <summary>
     /// Writes the 16-byte stream header: magic + codec ID + property length + reserved +
     /// property header + CRC32.
@@ -141,6 +144,12 @@ internal static class ZevenFormat
         if (uncompressedSize < 0)
         {
             throw new InvalidDataException("Uncompressed size is negative.");
+        }
+
+        if (uncompressedSize > MaxUncompressedChunkSize)
+        {
+            throw new InvalidDataException(
+                $"Uncompressed chunk size ({uncompressedSize:N0} bytes) exceeds maximum allowed ({MaxUncompressedChunkSize:N0} bytes).");
         }
 
         if (compressedSize < 0)
