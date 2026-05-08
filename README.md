@@ -124,8 +124,7 @@ ZstdCodec.Decompress(zstInput, tarStream);
 
 // Step 2: Extract tar
 tarStream.Position = 0;
-using var handle = lib.CreateInArchive("tar");
-handle.Open(tarStream);
+using var handle = lib.OpenArchive("tar", tarStream);
 handle.ExtractTo(@"C:\output");
 ```
 
@@ -135,8 +134,7 @@ handle.ExtractTo(@"C:\output");
 using Zeven.Core;
 
 var lib = ZevenLibrary.Load(@"path\to\7z.dll");
-using var handle = lib.CreateInArchive("7z");
-handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
+using var handle = lib.OpenArchive("7z", File.OpenRead(@"C:\docs\backup.7z"));
 
 // List all entries
 foreach (var entry in handle.Entries)
@@ -193,8 +191,7 @@ Each format has its own typed options class implementing `IArchiveCreateOptions`
 Add, replace, or delete entries in an existing archive:
 
 ```csharp
-using var handle = lib.CreateInArchive("7z");
-handle.Open(File.OpenRead(@"C:\docs\backup.7z"));
+using var handle = lib.OpenArchive("7z", File.OpenRead(@"C:\docs\backup.7z"));
 
 using var updated = File.Create(@"C:\docs\backup-updated.7z");
 lib.UpdateArchive("7z", handle, updated, u => u

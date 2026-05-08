@@ -4,7 +4,7 @@ namespace Zeven.Tests;
 
 public class PasswordTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     [Fact]
     public void CreateEncrypted_RoundTrip_WithCorrectPassword()
@@ -27,9 +27,8 @@ public class PasswordTests
         }
 
         // Read back with correct password
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var inStream = new MemoryStream(archiveBytes);
-        handle.Open(inStream, password: password);
+        using var handle = lib.OpenArchive(format.ClassId, inStream, password: password);
 
         var extracted = handle.ExtractAll();
         Assert.Equal(files["secret.txt"], extracted.Values.First());
@@ -53,9 +52,8 @@ public class PasswordTests
             archiveBytes = outStream.ToArray();
         }
 
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var inStream = new MemoryStream(archiveBytes);
-        handle.Open(inStream, password: "wrong");
+        using var handle = lib.OpenArchive(format.ClassId, inStream, password: "wrong");
 
         // With wrong password, extraction now throws ArchiveExtractionException
         var ex = Assert.Throws<ArchiveExtractionException>(() => handle.ExtractAll());

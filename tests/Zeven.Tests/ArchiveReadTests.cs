@@ -27,7 +27,7 @@ public class ArchiveFixture : IDisposable
                 File.WriteAllBytes(Path.Combine(tempDir, name), content);
 
             var archivePath = Path.Combine(tempDir, "test.7z");
-            var psi = new ProcessStartInfo(@"q:\\Zeven\\bin\\7za.exe")
+            var psi = new ProcessStartInfo(TestPaths.ExePath)
             {
                 Arguments = $"a -t7z \"{archivePath}\" \"{tempDir}\\*\"",
                 RedirectStandardOutput = true,
@@ -48,7 +48,7 @@ public class ArchiveFixture : IDisposable
 
 public class ArchiveReadTests : IClassFixture<ArchiveFixture>
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
     private readonly ArchiveFixture _fixture;
 
     public ArchiveReadTests(ArchiveFixture fixture) => _fixture = fixture;
@@ -58,10 +58,8 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         Assert.Equal(_fixture.OriginalFiles.Count, handle.Entries.Count);
     }
@@ -71,9 +69,8 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         var paths = handle.Entries.Select(e => e.Path).ToList();
 
@@ -86,9 +83,8 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         foreach (var entry in handle.Entries)
         {
@@ -101,9 +97,8 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         Assert.Equal(_fixture.OriginalFiles.Count, handle.Entries.Count);
     }
@@ -113,9 +108,8 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         var paths = handle.Entries.Select(e => e.Path).OrderBy(p => p).ToList();
         Assert.Contains("hello.txt", paths);
@@ -126,9 +120,8 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         var entry = handle.Entries.First(e => e.Path == "hello.txt");
         Assert.True(entry.Size > 0);
@@ -140,9 +133,8 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         var entry = handle.Entries.First(e => e.Path == "hello.txt");
         Assert.NotNull(entry.ModifiedTime);
@@ -153,9 +145,8 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         for (int i = 0; i < handle.Entries.Count; i++)
         {

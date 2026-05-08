@@ -4,7 +4,7 @@ namespace Zeven.Tests;
 
 public class ExtractionTests : IClassFixture<ArchiveFixture>
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
     private readonly ArchiveFixture _fixture;
 
     public ExtractionTests(ArchiveFixture fixture) => _fixture = fixture;
@@ -14,9 +14,8 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         var extracted = handle.ExtractAll();
 
@@ -34,9 +33,8 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         var helloEntry = handle.Entries.First(e => e.Path == "hello.txt");
 
@@ -51,9 +49,8 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
     {
         using var lib = ZevenLibrary.Load(DllPath);
         var format = lib.Formats.First(f => f.Name == "7z");
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
-        handle.Open(stream);
+        using var handle = lib.OpenArchive(format.ClassId, stream);
 
         // testMode = true means verify (no output streams)
         handle.Test();
@@ -75,8 +72,7 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         lib.CreateArchive("7z", ms, files);
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("7z", ms);
 
         // Pass indices in reverse order
         var data = handle.Extract([2, 0]);
@@ -98,8 +94,7 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         lib.CreateArchive("7z", ms, files);
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("7z", ms);
 
         var content = handle.Extract("b.txt");
         Assert.Equal("BBB", System.Text.Encoding.UTF8.GetString(content));
@@ -114,8 +109,7 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         lib.CreateArchive("7z", ms, files);
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("7z", ms);
 
         Assert.Throws<KeyNotFoundException>(() => handle.Extract("nonexistent.txt"));
     }
@@ -133,8 +127,7 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         lib.CreateArchive("7z", ms, files);
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("7z", ms);
 
         using var output = new MemoryStream();
         handle.ExtractTo("b.txt", output);
@@ -151,8 +144,7 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         lib.CreateArchive("7z", ms, files);
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("7z", ms);
 
         Assert.Throws<KeyNotFoundException>(
             () => handle.ExtractTo("nonexistent.txt", new MemoryStream()));
@@ -170,8 +162,7 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         lib.CreateArchive("7z", ms, files);
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("7z", ms);
 
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);

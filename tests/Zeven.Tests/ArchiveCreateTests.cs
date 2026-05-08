@@ -5,7 +5,7 @@ namespace Zeven.Tests;
 
 public class ArchiveCreateTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     [Fact]
     public void CreateArchive_RoundTrip_ProducesIdenticalContent()
@@ -30,9 +30,8 @@ public class ArchiveCreateTests
         Assert.True(archiveBytes.Length > 0, "Archive should be non-empty");
 
         // Read it back and verify
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var inStream = new MemoryStream(archiveBytes);
-        handle.Open(inStream);
+        using var handle = lib.OpenArchive(format.ClassId, inStream);
 
         var extracted = handle.ExtractAll();
 
@@ -59,9 +58,8 @@ public class ArchiveCreateTests
         lib.CreateArchive(format.ClassId, outStream, files);
         byte[] archiveBytes = outStream.ToArray();
 
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var inStream = new MemoryStream(archiveBytes);
-        handle.Open(inStream);
+        using var handle = lib.OpenArchive(format.ClassId, inStream);
 
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
@@ -88,9 +86,8 @@ public class ArchiveCreateTests
         lib.CreateArchive(format.ClassId, outStream, files);
         byte[] archiveBytes = outStream.ToArray();
 
-        using var handle = lib.CreateInArchive(format.ClassId);
         using var inStream = new MemoryStream(archiveBytes);
-        handle.Open(inStream);
+        using var handle = lib.OpenArchive(format.ClassId, inStream);
 
         var extracted = handle.ExtractAll();
         Assert.Equal(largeData, extracted["large.bin"]);
@@ -121,8 +118,7 @@ public class ArchiveCreateTests
 
             // Verify by extracting with existing API
             archiveStream.Position = 0;
-            using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
-            handle.Open(archiveStream);
+            using var handle = lib.OpenArchive(FormatClsid.SevenZip, archiveStream);
             var extracted = handle.ExtractAll();
 
             Assert.Equal(2, extracted.Count);
@@ -154,8 +150,7 @@ public class ArchiveCreateTests
 
             // Extract to disk
             archiveStream.Position = 0;
-            using var handle = lib.CreateInArchive(FormatClsid.SevenZip);
-            handle.Open(archiveStream);
+            using var handle = lib.OpenArchive(FormatClsid.SevenZip, archiveStream);
 
             var extractDir = Path.Combine(tempDir, "extracted");
             handle.ExtractTo(extractDir);
@@ -214,8 +209,7 @@ public class ArchiveCreateTests
         {
             using var lib = ZevenLibrary.Load(DllPath);
             zipStream.Position = 0;
-            using var handle = lib.CreateInArchive(FormatClsid.Zip);
-            handle.Open(zipStream);
+            using var handle = lib.OpenArchive(FormatClsid.Zip, zipStream);
 
             // ExtractTo must reject the traversal path
             Assert.ThrowsAny<Exception>(() => handle.ExtractTo(extractDir));
@@ -254,8 +248,7 @@ public class ArchiveCreateTests
         }, password: password);
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(ms, password: password);
+        using var handle = lib.OpenArchive("7z", ms, password: password);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
         Assert.Equal(data, extracted["test.txt"]);
@@ -281,8 +274,7 @@ public class ArchiveCreateTests
         });
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("zip");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("zip", ms);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
         Assert.Equal(data, extracted["test.txt"]);
@@ -302,8 +294,7 @@ public class ArchiveCreateTests
         lib.CreateArchive("gzip", ms, files, new GZipCreateOptions { Level = level });
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("gzip");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("gzip", ms);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
     }
@@ -326,8 +317,7 @@ public class ArchiveCreateTests
         });
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("bzip2");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("bzip2", ms);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
     }
@@ -350,8 +340,7 @@ public class ArchiveCreateTests
         });
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("xz");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("xz", ms);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
     }
@@ -370,8 +359,7 @@ public class ArchiveCreateTests
         lib.CreateArchive("brotli", ms, files, new BrotliArchiveCreateOptions { Level = level });
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("brotli");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("brotli", ms);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
     }
@@ -394,8 +382,7 @@ public class ArchiveCreateTests
         });
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("lz4");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("lz4", ms);
         var extracted = handle.ExtractAll();
         Assert.Single(extracted);
     }

@@ -98,7 +98,7 @@ public sealed class ZevenLibrary : IDisposable
     }
 
     /// <summary>Create an IInArchive COM object for the given format CLSID.</summary>
-    public ArchiveHandle CreateInArchive(Guid classId)
+    internal ArchiveHandle CreateInArchive(Guid classId)
     {
         Guid iid = Iid.IInArchive;
         int hr = this.createObject(in classId, in iid, out nint ptr);
@@ -108,9 +108,34 @@ public sealed class ZevenLibrary : IDisposable
     }
 
     /// <summary>Create an IInArchive COM object by format name (e.g., "7z", "Zip", "Tar").</summary>
-    public ArchiveHandle CreateInArchive(string formatName)
+    internal ArchiveHandle CreateInArchive(string formatName)
     {
         return this.CreateInArchive(this.ResolveFormat(formatName));
+    }
+
+    /// <summary>Open an archive from a stream by format CLSID.</summary>
+    public ArchiveHandle OpenArchive(Guid classId, Stream stream,
+            string? password = null, ulong maxCheckStartPosition = 1 << 23)
+    {
+        var handle = this.CreateInArchive(classId);
+        try
+        {
+            handle.Open(stream, password, maxCheckStartPosition);
+            return handle;
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>Open an archive from a stream by format name (e.g., "7z", "Zip", "Tar").</summary>
+    public ArchiveHandle OpenArchive(string formatName, Stream stream,
+            string? password = null, ulong maxCheckStartPosition = 1 << 23)
+    {
+        return this.OpenArchive(this.ResolveFormat(formatName), stream, password,
+                maxCheckStartPosition);
     }
 
     internal StrategyBasedComWrappers ComWrappers => this.comWrappers;
@@ -507,7 +532,7 @@ public sealed class ArchiveHandle : IDisposable
     }
 
     /// <summary>Open an archive from the given stream.</summary>
-    public void Open(Stream stream, string? password = null, ulong maxCheckStartPosition = 1 << 23)
+    internal void Open(Stream stream, string? password = null, ulong maxCheckStartPosition = 1 << 23)
     {
         this.password = password;
         this.streamWrapper = new InStreamWrapper(stream);

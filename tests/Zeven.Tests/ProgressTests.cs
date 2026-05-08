@@ -4,7 +4,7 @@ namespace Zeven.Tests;
 
 public class ProgressTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     private class TestProgress : IProgress<ArchiveProgress>
     {
@@ -21,8 +21,7 @@ public class ProgressTests
         lib.CreateArchive("7z", ms, files);
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("7z", ms);
 
         var progress = new TestProgress();
         handle.ExtractAll(progress);
@@ -41,8 +40,7 @@ public class ProgressTests
         lib.CreateArchive("7z", ms, files);
 
         ms.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(ms);
+        using var handle = lib.OpenArchive("7z", ms);
 
         var cts = new CancellationTokenSource();
         cts.Cancel(); // pre-cancel

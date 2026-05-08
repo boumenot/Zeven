@@ -4,7 +4,7 @@ namespace Zeven.Tests;
 
 public class DisposableTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     [Fact]
     public void ArchiveHandle_CanBeUsedInUsingBlock()
@@ -22,9 +22,8 @@ public class DisposableTests
 
         // Open, extract, dispose — all within using scope
         Dictionary<string, byte[]> extracted;
-        using (var handle = lib.CreateInArchive(format.ClassId))
+        using (var handle = lib.OpenArchive(format.ClassId, new MemoryStream(archiveBytes)))
         {
-            handle.Open(new MemoryStream(archiveBytes));
             extracted = handle.ExtractAll();
         }
         // After dispose, extracted data is still accessible
@@ -49,10 +48,8 @@ public class DisposableTests
             archive2 = ms.ToArray();
         }
 
-        using var h1 = lib.CreateInArchive(format.ClassId);
-        using var h2 = lib.CreateInArchive(format.ClassId);
-        h1.Open(new MemoryStream(archive1));
-        h2.Open(new MemoryStream(archive2));
+        using var h1 = lib.OpenArchive(format.ClassId, new MemoryStream(archive1));
+        using var h2 = lib.OpenArchive(format.ClassId, new MemoryStream(archive2));
 
         var e1 = h1.ExtractAll();
         var e2 = h2.ExtractAll();
@@ -96,8 +93,7 @@ public class DisposableTests
         // Warmup
         for (int i = 0; i < 10; i++)
         {
-            using var handle = lib.CreateInArchive("7z");
-            handle.Open(new MemoryStream(archiveBytes));
+            using var handle = lib.OpenArchive("7z", new MemoryStream(archiveBytes));
             handle.ExtractAll();
         }
 
@@ -108,8 +104,7 @@ public class DisposableTests
 
         for (int i = 0; i < 100_000; i++)
         {
-            using var handle = lib.CreateInArchive("7z");
-            handle.Open(new MemoryStream(archiveBytes));
+            using var handle = lib.OpenArchive("7z", new MemoryStream(archiveBytes));
             handle.ExtractAll();
         }
 

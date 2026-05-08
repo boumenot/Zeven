@@ -4,7 +4,7 @@ namespace Zeven.Tests;
 
 public class ArchiveUpdateTests
 {
-    const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
+    static string DllPath => TestPaths.DllPath;
 
     [Fact]
     public void UpdateArchive_AddFile_RoundTrips()
@@ -21,8 +21,7 @@ public class ArchiveUpdateTests
 
         // Update: add a new file
         initial.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(initial);
+        using var handle = lib.OpenArchive("7z", initial);
 
         using var updated = new MemoryStream();
         lib.UpdateArchive("7z", handle, updated, u => u
@@ -30,8 +29,7 @@ public class ArchiveUpdateTests
 
         // Verify
         updated.Position = 0;
-        using var verify = lib.CreateInArchive("7z");
-        verify.Open(updated);
+        using var verify = lib.OpenArchive("7z", updated);
         var extracted = verify.ExtractAll();
         Assert.Equal(2, extracted.Count);
         Assert.Equal("original", System.Text.Encoding.UTF8.GetString(extracted["original.txt"]));
@@ -52,8 +50,7 @@ public class ArchiveUpdateTests
         lib.CreateArchive("7z", initial, files);
 
         initial.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(initial);
+        using var handle = lib.OpenArchive("7z", initial);
 
         using var updated = new MemoryStream();
         lib.UpdateArchive("7z", handle, updated, u => u
@@ -80,8 +77,7 @@ public class ArchiveUpdateTests
         lib.CreateArchive("7z", initial, files);
 
         initial.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(initial);
+        using var handle = lib.OpenArchive("7z", initial);
 
         using var updated = new MemoryStream();
         lib.UpdateArchive("7z", handle, updated, u => u
@@ -110,8 +106,7 @@ public class ArchiveUpdateTests
         lib.CreateArchive("7z", initial, files);
 
         initial.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(initial);
+        using var handle = lib.OpenArchive("7z", initial);
 
         using var updated = new MemoryStream();
         lib.UpdateArchive("7z", handle, updated, u => u
@@ -144,8 +139,7 @@ public class ArchiveUpdateTests
         lib.CreateArchive("7z", initial, files);
 
         initial.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(initial);
+        using var handle = lib.OpenArchive("7z", initial);
 
         using var updated = new MemoryStream();
         lib.UpdateArchive("7z", handle, updated, update =>
@@ -155,8 +149,7 @@ public class ArchiveUpdateTests
         });
 
         updated.Position = 0;
-        using var verify = lib.CreateInArchive("7z");
-        verify.Open(updated);
+        using var verify = lib.OpenArchive("7z", updated);
         var extracted = verify.ExtractAll();
         Assert.Equal(2, extracted.Count);
         Assert.Equal("AAA", System.Text.Encoding.UTF8.GetString(extracted["a.txt"]));
@@ -179,16 +172,14 @@ public class ArchiveUpdateTests
             File.WriteAllText(Path.Combine(tempDir, "added.txt"), "from disk");
 
             initial.Position = 0;
-            using var handle = lib.CreateInArchive("7z");
-            handle.Open(initial);
+            using var handle = lib.OpenArchive("7z", initial);
 
             using var updated = new MemoryStream();
             lib.UpdateArchive("7z", handle, updated, u => u
                 .Add("added.txt", Path.Combine(tempDir, "added.txt")));
 
             updated.Position = 0;
-            using var verify = lib.CreateInArchive("7z");
-            verify.Open(updated);
+            using var verify = lib.OpenArchive("7z", updated);
             var extracted = verify.ExtractAll();
             Assert.Equal(2, extracted.Count);
             Assert.Equal("from disk", System.Text.Encoding.UTF8.GetString(extracted["added.txt"]));
@@ -209,8 +200,7 @@ public class ArchiveUpdateTests
         lib.CreateArchive("7z", initial, files);
 
         initial.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(initial);
+        using var handle = lib.OpenArchive("7z", initial);
 
         var streamData = "from stream"u8.ToArray();
         using var dataStream = new MemoryStream(streamData);
@@ -220,8 +210,7 @@ public class ArchiveUpdateTests
             .Add("streamed.txt", dataStream, streamData.Length));
 
         updated.Position = 0;
-        using var verify = lib.CreateInArchive("7z");
-        verify.Open(updated);
+        using var verify = lib.OpenArchive("7z", updated);
         var extracted = verify.ExtractAll();
         Assert.Equal(2, extracted.Count);
         Assert.Equal("from stream", System.Text.Encoding.UTF8.GetString(extracted["streamed.txt"]));
@@ -243,16 +232,14 @@ public class ArchiveUpdateTests
             File.WriteAllText(Path.Combine(tempDir, "config.txt"), "v2 from disk");
 
             initial.Position = 0;
-            using var handle = lib.CreateInArchive("7z");
-            handle.Open(initial);
+            using var handle = lib.OpenArchive("7z", initial);
 
             using var updated = new MemoryStream();
             lib.UpdateArchive("7z", handle, updated, u => u
                 .Replace("config.txt", Path.Combine(tempDir, "config.txt")));
 
             updated.Position = 0;
-            using var verify = lib.CreateInArchive("7z");
-            verify.Open(updated);
+            using var verify = lib.OpenArchive("7z", updated);
             var extracted = verify.ExtractAll();
             Assert.Single(extracted);
             Assert.Equal("v2 from disk", System.Text.Encoding.UTF8.GetString(extracted["config.txt"]));
@@ -273,8 +260,7 @@ public class ArchiveUpdateTests
         lib.CreateArchive("7z", initial, files);
 
         initial.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(initial);
+        using var handle = lib.OpenArchive("7z", initial);
 
         var streamData = "v2 from stream"u8.ToArray();
         using var dataStream = new MemoryStream(streamData);
@@ -284,8 +270,7 @@ public class ArchiveUpdateTests
             .Replace("config.txt", dataStream, streamData.Length));
 
         updated.Position = 0;
-        using var verify = lib.CreateInArchive("7z");
-        verify.Open(updated);
+        using var verify = lib.OpenArchive("7z", updated);
         var extracted = verify.ExtractAll();
         Assert.Single(extracted);
         Assert.Equal("v2 from stream", System.Text.Encoding.UTF8.GetString(extracted["config.txt"]));
@@ -303,16 +288,14 @@ public class ArchiveUpdateTests
         lib.CreateArchive("7z", initial, files);
 
         initial.Position = 0;
-        using var handle = lib.CreateInArchive("7z");
-        handle.Open(initial);
+        using var handle = lib.OpenArchive("7z", initial);
 
         using var updated = new MemoryStream();
         lib.UpdateArchive("7z", handle, updated, u => u
             .Replace("File.txt", "updated"u8.ToArray()));
 
         updated.Position = 0;
-        using var verify = lib.CreateInArchive("7z");
-        verify.Open(updated);
+        using var verify = lib.OpenArchive("7z", updated);
         var extracted = verify.ExtractAll();
         Assert.Single(extracted);
         Assert.Equal("updated", System.Text.Encoding.UTF8.GetString(extracted["File.txt"]));
