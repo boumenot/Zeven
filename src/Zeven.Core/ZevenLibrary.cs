@@ -197,6 +197,8 @@ public sealed class ZevenLibrary : IDisposable
             {
                 throw new OperationCanceledException(cancellationToken);
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
         }
         finally
         {
@@ -250,6 +252,8 @@ public sealed class ZevenLibrary : IDisposable
             {
                 throw new OperationCanceledException(cancellationToken);
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
         }
         finally
         {
@@ -431,6 +435,8 @@ public sealed class ZevenLibrary : IDisposable
             {
                 throw new OperationCanceledException(cancellationToken);
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
         }
         finally
         {
@@ -692,6 +698,8 @@ public sealed class ArchiveHandle : IDisposable
             throw new OperationCanceledException(cancellationToken);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (callback.Failures.Count > 0)
         {
             throw new ArchiveExtractionException(callback.Failures);
@@ -742,6 +750,8 @@ public sealed class ArchiveHandle : IDisposable
         {
             throw new OperationCanceledException(cancellationToken);
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private List<ArchiveEntry> LoadEntries()

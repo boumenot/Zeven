@@ -279,4 +279,23 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
             if (Directory.Exists(tempDir)) { Directory.Delete(tempDir, true); }
         }
     }
+
+    [Fact]
+    public void ExtractAll_PreCancelled_SmallArchive_Throws()
+    {
+        using var lib = ZevenLibrary.Load(DllPath);
+        var files = new Dictionary<string, byte[]> { ["tiny.txt"] = "x"u8.ToArray() };
+        using var ms = new MemoryStream();
+        lib.CreateArchive("7z", ms, files);
+
+        ms.Position = 0;
+        using var handle = lib.CreateInArchive("7z");
+        handle.Open(ms);
+
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.ThrowsAny<OperationCanceledException>(
+            () => handle.ExtractAll(cancellationToken: cts.Token));
+    }
 }
