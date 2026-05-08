@@ -10,6 +10,9 @@ internal static class ZevenFormat
 {
     static readonly byte[] Magic = "ZVN\x01"u8.ToArray();
 
+    /// <summary>Maximum compressed chunk size to prevent malicious streams from forcing huge allocations.</summary>
+    private const long MaxCompressedChunkSize = 256 * 1024 * 1024; // 256 MB
+
     /// <summary>
     /// Writes the 16-byte stream header: magic + codec ID + property length + reserved +
     /// property header + CRC32.
@@ -145,10 +148,10 @@ internal static class ZevenFormat
             throw new InvalidDataException("Compressed size is negative.");
         }
 
-        if (compressedSize > int.MaxValue)
+        if (compressedSize > MaxCompressedChunkSize)
         {
             throw new InvalidDataException(
-                "Compressed size exceeds maximum allowed allocation.");
+                $"Compressed chunk size ({compressedSize:N0} bytes) exceeds maximum allowed ({MaxCompressedChunkSize:N0} bytes).");
         }
 
         byte[] compressedData = new byte[(int)compressedSize];

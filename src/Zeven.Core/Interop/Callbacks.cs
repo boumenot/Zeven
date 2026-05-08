@@ -594,7 +594,7 @@ public partial class DirectoryExtractCallback : IArchiveExtractCallback, ICrypto
         return ValidatePathInternal(this.baseDirectory, itemPath);
     }
 
-    internal static string ValidatePathInternal(string baseDirectory, string itemPath)
+    public static string ValidatePathInternal(string baseDirectory, string itemPath)
     {
         string fullPath = Path.GetFullPath(Path.Combine(baseDirectory, itemPath));
         if (!fullPath.StartsWith(baseDirectory, StringComparison.OrdinalIgnoreCase))

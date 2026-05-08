@@ -86,7 +86,7 @@ var files = new Dictionary<string, byte[]>
 lib.CreateArchive("7z", output, files);
 
 // Extract to memory
-var extracted = handle.ExtractAll(); // Dictionary<uint, byte[]>
+var extracted = handle.ExtractAll(); // Dictionary<string, byte[]>
 ```
 
 ### Creating a .tar.zst archive

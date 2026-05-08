@@ -1,7 +1,5 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Zeven.Core;
-using Zeven.Core.Interop;
 
 namespace Zeven.Tests;
 
@@ -65,8 +63,7 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
 
         handle.Open(stream);
 
-        handle.Archive.GetNumberOfItems(out uint count);
-        Assert.Equal((uint)_fixture.OriginalFiles.Count, count);
+        Assert.Equal(_fixture.OriginalFiles.Count, handle.Entries.Count);
     }
 
     [Fact]
@@ -78,15 +75,7 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
         handle.Open(stream);
 
-        handle.Archive.GetNumberOfItems(out uint count);
-        var paths = new List<string>();
-        for (uint i = 0; i < count; i++)
-        {
-            PropVariant pv = default;
-            handle.Archive.GetProperty(i, PropId.kpidPath, ref pv);
-            paths.Add(pv.GetBstr()!);
-            NativeMethods.PropVariantClear(ref pv);
-        }
+        var paths = handle.Entries.Select(e => e.Path).ToList();
 
         foreach (var name in _fixture.OriginalFiles.Keys)
             Assert.Contains(name, paths);
@@ -101,19 +90,9 @@ public class ArchiveReadTests : IClassFixture<ArchiveFixture>
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
         handle.Open(stream);
 
-        handle.Archive.GetNumberOfItems(out uint count);
-        for (uint i = 0; i < count; i++)
+        foreach (var entry in handle.Entries)
         {
-            PropVariant pvPath = default;
-            handle.Archive.GetProperty(i, PropId.kpidPath, ref pvPath);
-            string path = pvPath.GetBstr()!;
-            NativeMethods.PropVariantClear(ref pvPath);
-
-            PropVariant pvSize = default;
-            handle.Archive.GetProperty(i, PropId.kpidSize, ref pvSize);
-            ulong size = pvSize.GetUInt64();
-
-            Assert.Equal((ulong)_fixture.OriginalFiles[path].Length, size);
+            Assert.Equal((ulong)_fixture.OriginalFiles[entry.Path].Length, entry.Size);
         }
     }
 

@@ -34,8 +34,8 @@ internal static class ArchiveOptions
                     for (int i = 0; i < props.Count; i++)
                     {
                         names[i] = Marshal.StringToBSTR(props[i].Name);
-                        values[i] = PropVariant.FromObject(props[i].Value);
                         allocatedCount = i + 1;
+                        values[i] = PropVariant.FromObject(props[i].Value);
                     }
 
                     int hr = setProps.SetProperties((nint)names, (nint)values, (uint)props.Count);

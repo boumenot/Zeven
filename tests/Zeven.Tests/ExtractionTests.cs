@@ -1,6 +1,4 @@
-using System.Runtime.InteropServices;
 using Zeven.Core;
-using Zeven.Core.Interop;
 
 namespace Zeven.Tests;
 
@@ -40,22 +38,12 @@ public class ExtractionTests : IClassFixture<ArchiveFixture>
         using var stream = new MemoryStream(_fixture.ArchiveBytes);
         handle.Open(stream);
 
-        // Find the index of hello.txt
-        handle.Archive.GetNumberOfItems(out uint count);
-        uint helloIndex = uint.MaxValue;
-        for (uint i = 0; i < count; i++)
-        {
-            PropVariant pv = default;
-            handle.Archive.GetProperty(i, PropId.kpidPath, ref pv);
-            if (pv.GetBstr() == "hello.txt") helloIndex = i;
-            NativeMethods.PropVariantClear(ref pv);
-        }
-        Assert.NotEqual(uint.MaxValue, helloIndex);
+        var helloEntry = handle.Entries.First(e => e.Path == "hello.txt");
 
-        var extracted = handle.Extract(new[] { helloIndex });
+        var extracted = handle.Extract(new[] { helloEntry.Index });
 
         Assert.Single(extracted);
-        Assert.Equal(_fixture.OriginalFiles["hello.txt"], extracted[helloIndex]);
+        Assert.Equal(_fixture.OriginalFiles["hello.txt"], extracted[helloEntry.Index]);
     }
 
     [Fact]

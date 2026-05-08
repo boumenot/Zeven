@@ -113,7 +113,7 @@ public sealed class ZevenLibrary : IDisposable
         return this.CreateInArchive(this.ResolveFormat(formatName));
     }
 
-    public StrategyBasedComWrappers ComWrappers => this.comWrappers;
+    internal StrategyBasedComWrappers ComWrappers => this.comWrappers;
 
     /// <summary>Find the index of a codec by its 7-Zip codec ID (e.g., 0x21 for LZMA2).</summary>
     /// <returns>Codec index, or -1 if not found.</returns>
@@ -488,8 +488,8 @@ public sealed class ZevenLibrary : IDisposable
 /// <summary>Wrapper around IInArchive with the ComWrappers instance for CCW creation.</summary>
 public sealed class ArchiveHandle : IDisposable
 {
-    public IInArchive Archive { get; }
-    public StrategyBasedComWrappers ComWrappers { get; }
+    internal IInArchive Archive { get; }
+    internal StrategyBasedComWrappers ComWrappers { get; }
     internal nint NativeArchivePtr { get; set; }
 
     // prevent GC of managed COM wrappers while native code holds references
@@ -522,17 +522,21 @@ public sealed class ArchiveHandle : IDisposable
         Marshal.QueryInterface(callbackCcw, ref iidCallback, out nint callbackPtr);
 
         int hr;
-        unsafe
+        try
         {
-            ulong scanSize = maxCheckStartPosition;
-            hr = this.Archive.Open(streamPtr, (nint)(&scanSize), callbackPtr);
+            unsafe
+            {
+                ulong scanSize = maxCheckStartPosition;
+                hr = this.Archive.Open(streamPtr, (nint)(&scanSize), callbackPtr);
+            }
         }
-
-        // Release our QI references
-        if (streamPtr != nint.Zero) { Marshal.Release(streamPtr); }
-        if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
-        Marshal.Release(streamCcw);
-        Marshal.Release(callbackCcw);
+        finally
+        {
+            if (streamPtr != nint.Zero) { Marshal.Release(streamPtr); }
+            if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
+            Marshal.Release(streamCcw);
+            Marshal.Release(callbackCcw);
+        }
 
         Marshal.ThrowExceptionForHR(hr);
     }
@@ -558,10 +562,16 @@ public sealed class ArchiveHandle : IDisposable
         if (!this.disposed)
         {
             this.disposed = true;
-            this.Archive.Close();
-            Marshal.Release(this.NativeArchivePtr);
-            this.streamWrapper = null;
-            this.openCallback = null;
+            try
+            {
+                this.Archive.Close();
+            }
+            finally
+            {
+                Marshal.Release(this.NativeArchivePtr);
+                this.streamWrapper = null;
+                this.openCallback = null;
+            }
         }
     }
     private bool disposed;
@@ -649,26 +659,32 @@ public sealed class ArchiveHandle : IDisposable
         Guid iidExtractCb = Iid.IArchiveExtractCallback;
         Marshal.QueryInterface(callbackCcw, ref iidExtractCb, out nint callbackPtr);
 
-        unsafe
+        int hr;
+        try
         {
-            var indices = new uint[] { entry.Index };
-            fixed (uint* pIdx = indices)
+            unsafe
             {
-                int hr = this.Archive.Extract((nint)pIdx, 1, 0, callbackPtr);
-
-                if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
-                Marshal.Release(callbackCcw);
-                GC.KeepAlive(callback);
-
-                try
+                var indices = new uint[] { entry.Index };
+                fixed (uint* pIdx = indices)
                 {
-                    Marshal.ThrowExceptionForHR(hr);
-                }
-                catch (COMException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException(cancellationToken);
+                    hr = this.Archive.Extract((nint)pIdx, 1, 0, callbackPtr);
                 }
             }
+        }
+        finally
+        {
+            if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
+            Marshal.Release(callbackCcw);
+            GC.KeepAlive(callback);
+        }
+
+        try
+        {
+            Marshal.ThrowExceptionForHR(hr);
+        }
+        catch (COMException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -711,11 +727,17 @@ public sealed class ArchiveHandle : IDisposable
         Guid iidExtractCb = Iid.IArchiveExtractCallback;
         Marshal.QueryInterface(callbackCcw, ref iidExtractCb, out nint callbackPtr);
 
-        int hr = this.Archive.Extract(nint.Zero, 0xFFFFFFFF, 0, callbackPtr);
-
-        if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
-        Marshal.Release(callbackCcw);
-        GC.KeepAlive(callback);
+        int hr;
+        try
+        {
+            hr = this.Archive.Extract(nint.Zero, 0xFFFFFFFF, 0, callbackPtr);
+        }
+        finally
+        {
+            if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
+            Marshal.Release(callbackCcw);
+            GC.KeepAlive(callback);
+        }
 
         try
         {
@@ -743,32 +765,32 @@ public sealed class ArchiveHandle : IDisposable
         Marshal.QueryInterface(callbackCcw, ref iidExtractCb, out nint callbackPtr);
 
         int hr;
-        if (indices == null)
+        try
         {
-            // Extract all: pass NULL indices and numItems = 0xFFFFFFFF
-            hr = this.Archive.Extract(nint.Zero, 0xFFFFFFFF, testMode, callbackPtr);
-        }
-        else
-        {
-            // Sort a copy — 7-Zip requires indices in ascending order.
-            // In solid archives, unsorted indices force the decoder to restart
-            // decompression from the beginning, causing severe performance
-            // degradation or incorrect results.
-            var sorted = (uint[])indices.Clone();
-            Array.Sort(sorted);
-
-            unsafe
+            if (indices == null)
             {
-                fixed (uint* pIndices = sorted)
+                hr = this.Archive.Extract(nint.Zero, 0xFFFFFFFF, testMode, callbackPtr);
+            }
+            else
+            {
+                var sorted = (uint[])indices.Clone();
+                Array.Sort(sorted);
+
+                unsafe
                 {
-                    hr = this.Archive.Extract((nint)pIndices, (uint)sorted.Length, testMode, callbackPtr);
+                    fixed (uint* pIndices = sorted)
+                    {
+                        hr = this.Archive.Extract((nint)pIndices, (uint)sorted.Length, testMode, callbackPtr);
+                    }
                 }
             }
         }
-
-        if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
-        Marshal.Release(callbackCcw);
-        GC.KeepAlive(callback);
+        finally
+        {
+            if (callbackPtr != nint.Zero) { Marshal.Release(callbackPtr); }
+            Marshal.Release(callbackCcw);
+            GC.KeepAlive(callback);
+        }
 
         try
         {
