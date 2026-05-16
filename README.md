@@ -1,6 +1,8 @@
 # Zeven
 
 [![CI](https://github.com/boumenot/Zeven/actions/workflows/ci.yml/badge.svg)](https://github.com/boumenot/Zeven/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
 
 A .NET 10 registration-free COM interop wrapper for 7-Zip's native DLLs, using source-generated COM interfaces (`[GeneratedComInterface]` / `[GeneratedComClass]`).
 
