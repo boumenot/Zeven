@@ -1,7 +1,7 @@
 using System.IO.Compression;
-using Zeven.Core;
-using Zeven.Core.Interop;
-using BrotliStream = Zeven.Core.BrotliStream;
+using Zeven;
+using Zeven.Interop;
+using BrotliStream = Zeven.BrotliStream;
 
 namespace Zeven.Tests;
 

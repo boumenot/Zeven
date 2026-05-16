@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Zeven.Core;
+using Zeven;
 
 public static class LeakTest
 {

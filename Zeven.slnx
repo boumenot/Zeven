@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Zeven.Core/Zeven.Core.csproj" />
     <Project Path="src/Zeven/Zeven.csproj" />
+    <Project Path="src/Zeven.Cli/Zeven.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Zeven.Tests/Zeven.Tests.csproj" />

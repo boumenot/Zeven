@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-using Zeven.Core.Interop;
+using Zeven.Interop;
 
 namespace Zeven.Tests;
 

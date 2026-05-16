@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using Zeven.Core;
-using Zeven.Core.Interop;
+using Zeven;
+using Zeven.Interop;
 
 public static class CompressionRatioTable
 {

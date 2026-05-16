@@ -9,7 +9,7 @@
 | Interface | PascalCase with `I` prefix | `IInArchive` |
 | Property | PascalCase | `Formats` |
 | Method, Function | PascalCase | `CreateInArchive()` |
-| Namespace | PascalCase | `Zeven.Core.Interop` |
+| Namespace | PascalCase | `Zeven.Interop` |
 | Local variable | camelCase | `archiveBytes` |
 | Parameter | camelCase | `dllPath` |
 | Constant | PascalCase | `VtEmpty` |

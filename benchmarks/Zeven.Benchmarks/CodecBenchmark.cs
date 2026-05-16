@@ -1,8 +1,8 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnostics.Windows;
-using Zeven.Core;
-using Zeven.Core.Interop;
+using Zeven;
+using Zeven.Interop;
 
 [MemoryDiagnoser]
 [Config(typeof(NativeMemoryConfig))]

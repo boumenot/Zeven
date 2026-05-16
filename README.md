@@ -14,7 +14,7 @@ No COM registration, no IDL, no type libraries — just P/Invoke `CreateObject` 
 ### Batch compress and decompress
 
 ```csharp
-using Zeven.Core;
+using Zeven;
 
 // Load the 7-Zip native DLL
 ZevenLibrary.Load(@"path\to\7z.dll");
@@ -32,7 +32,7 @@ ZstdCodec.Decompress(compressed, decompressed);
 
 ```csharp
 using System.IO.Compression;
-using Zeven.Core;
+using Zeven;
 
 // Streaming compress
 using (var compressor = new ZstdStream(outputFile, CompressionMode.Compress))
@@ -58,7 +58,7 @@ All codecs (LZMA2, PPMd, Zstd, Brotli, LZ4) follow the same API pattern — swap
 ### Create and extract a .7z archive
 
 ```csharp
-using Zeven.Core;
+using Zeven;
 
 var lib = ZevenLibrary.Load(@"path\to\7z.dll");
 
@@ -102,7 +102,7 @@ var extracted = handle.ExtractAll(); // Dictionary<string, byte[]>
 Tar + Zstd is a two-step process: create the tar container, then compress with Zstd.
 
 ```csharp
-using Zeven.Core;
+using Zeven;
 
 var lib = ZevenLibrary.Load(@"path\to\7z.dll");
 
@@ -139,7 +139,7 @@ handle.ExtractTo(@"C:\output");
 ### Listing, inspecting, and extracting a single file
 
 ```csharp
-using Zeven.Core;
+using Zeven;
 
 var lib = ZevenLibrary.Load(@"path\to\7z.dll");
 using var handle = lib.OpenArchive("7z", File.OpenRead(@"C:\docs\backup.7z"));
@@ -419,7 +419,7 @@ All codecs share a common architecture via `ZevenStream<TOptions>` (generic base
 | `BrotliCodec` | `BrotliStream` | Brotli |
 | `Lz4Codec` | `Lz4Stream` | LZ4 |
 
-> **Note:** `Zeven.Core.BrotliStream` shares its name with `System.IO.Compression.BrotliStream`. Use a namespace alias or fully qualified name if both are needed in the same file.
+> **Note:** `Zeven.BrotliStream` shares its name with `System.IO.Compression.BrotliStream`. Use a namespace alias or fully qualified name if both are needed in the same file.
 
 This format is **not** compatible with 7z.exe or the .7z archive format.
 

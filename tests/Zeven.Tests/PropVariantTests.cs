@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 using Xunit;
-using Zeven.Core.Interop;
+using Zeven.Interop;
 
 namespace Zeven.Tests;
 
