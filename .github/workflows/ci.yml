@@ -11,16 +11,16 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
       - name: Cache 7z.dll
         id: cache-7z
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .7z
           key: 7z-dll-win-x64-v26.01.0
@@ -28,7 +28,7 @@ jobs:
       - name: Cache ghr
         if: steps.cache-7z.outputs.cache-hit != 'true'
         id: cache-ghr
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~\.local\pipx\venvs\ghr-bin
