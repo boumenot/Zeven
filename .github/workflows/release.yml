@@ -98,12 +98,39 @@ jobs:
           Copy-Item "${{ steps.attest.outputs.bundle-path }}" "$($nupkg.FullName).sigstore.json"
 
       - name: Create GitHub Release
-        run: >-
-          gh release create ${{ github.ref_name }}
-          ./artifacts/*.nupkg
-          ./artifacts/*.sha256
-          ./artifacts/*.sigstore.json
-          --title "${{ github.ref_name }}"
-          --generate-notes
+        run: |
+          $nupkg = Get-ChildItem ./artifacts/*.nupkg | Select-Object -First 1
+          $hash = (Get-Content "$($nupkg.FullName).sha256" -Raw).Trim()
+          $name = $nupkg.Name
+
+          $body = @"
+          ### Assets
+
+          | File | Description |
+          |------|-------------|
+          | ``$name`` | Zeven NuGet package |
+
+          ### Checksums (SHA256)
+
+          ``````
+          $hash
+          ``````
+
+          ### Verify attestation
+
+          ``````
+          gh release download ${{ github.ref_name }} -R boumenot/Zeven -p "*.nupkg" -p "*.sigstore.json"
+          gh attestation verify $name -R boumenot/Zeven --bundle $name.sigstore.json
+          ``````
+          "@
+
+          $body = ($body -split "`n" | ForEach-Object { $_.TrimStart() }) -join "`n"
+
+          gh release create ${{ github.ref_name }} `
+            ./artifacts/*.nupkg `
+            ./artifacts/*.sha256 `
+            ./artifacts/*.sigstore.json `
+            --title "${{ github.ref_name }}" `
+            --notes "$body"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

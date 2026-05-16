@@ -8,7 +8,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <PackageId>Zeven</PackageId>
-    <Authors>Chris Boumenot</Authors>
+    <Authors>Christopher Boumenot</Authors>
     <Description>.NET 10 registration-free COM interop wrapper for 7-Zip native DLLs with source-generated COM interfaces</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/boumenot/Zeven</PackageProjectUrl>
