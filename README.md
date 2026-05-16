@@ -1,5 +1,7 @@
 # Zeven
 
+[![CI](https://github.com/boumenot/Zeven/actions/workflows/ci.yml/badge.svg)](https://github.com/boumenot/Zeven/actions/workflows/ci.yml)
+
 A .NET 10 registration-free COM interop wrapper for 7-Zip's native DLLs, using source-generated COM interfaces (`[GeneratedComInterface]` / `[GeneratedComClass]`).
 
 No COM registration, no IDL, no type libraries — just P/Invoke `CreateObject` + source-generated vtable proxies.
