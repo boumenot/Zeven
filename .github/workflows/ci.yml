@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache 7z.dll
+        id: cache-7z
+        uses: actions/cache@v4
+        with:
+          path: .7z
+          key: 7z-dll-win-x64-v26.01.0
+
+      - name: Cache ghr
+        if: steps.cache-7z.outputs.cache-hit != 'true'
+        id: cache-ghr
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\.local\pipx\venvs\ghr-bin
+            ~\.local\bin\ghr.exe
+          key: ghr-bin-0.3.0
+
+      - name: Install ghr
+        if: steps.cache-7z.outputs.cache-hit != 'true' && steps.cache-ghr.outputs.cache-hit != 'true'
+        run: pipx install ghr-bin==0.3.0
+
+      - name: Download and verify 7z.dll
+        if: steps.cache-7z.outputs.cache-hit != 'true'
+        run: |
+          ghr download boumenot/7-Zip-zstd/7z-dll-win-x64.zip@v26.01.0 --extract .7z
+          if ($LASTEXITCODE -ne 0) {
+            throw "ghr verification failed for 7z-dll-win-x64.zip (exit code $LASTEXITCODE)"
+          }
+          ghr download boumenot/7-Zip-zstd/7za-win-x64.zip@v26.01.0 --extract .7z
+          if ($LASTEXITCODE -ne 0) {
+            throw "ghr verification failed for 7za-win-x64.zip (exit code $LASTEXITCODE)"
+          }
+
+      - name: Restore
+        run: dotnet restore Zeven.slnx
+
+      - name: Build
+        run: dotnet build Zeven.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Zeven.slnx --configuration Release --no-build
+        env:
+          ZEVEN_7Z_DLL_PATH: ${{ github.workspace }}\.7z\7z.dll
