@@ -6,7 +6,20 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <PackageId>Zeven</PackageId>
+    <Authors>Chris Boumenot</Authors>
+    <Description>.NET 10 registration-free COM interop wrapper for 7-Zip native DLLs with source-generated COM interfaces</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/boumenot/Zeven</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/boumenot/Zeven</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>7zip;compression;zstd;lzma2;brotli;lz4;com-interop</PackageTags>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Zeven.Tests" />
