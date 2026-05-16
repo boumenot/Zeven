@@ -8,8 +8,9 @@ using Zeven.Core.Interop;
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
-const string DllPath = @"q:\\Zeven\\bin\\7z.dll";
-const string ExePath = @"q:\\Zeven\\bin\\7za.exe";
+string DllPath = Environment.GetEnvironmentVariable("ZEVEN_7Z_DLL_PATH")
+    ?? Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "bin", "7z.dll"));
+string ExePath = Path.Combine(Path.GetDirectoryName(DllPath)!, "7za.exe");
 
 Guid clsid7z = FormatClsid.SevenZip;
 Guid iidInArchive = Iid.IInArchive;
