@@ -7,8 +7,7 @@ No COM registration, no IDL, no type libraries — just P/Invoke `CreateObject` 
 ## Prerequisites
 
 - **.NET 10 SDK**
-- **7z.dll** — from the [7-Zip installer](https://7-zip.org/) (`C:\Program Files\7-Zip\7z.dll`). Supports all archive formats.
-- For **Zstd, Brotli, LZ4** codec support, use `7z.dll` from [7-Zip-zstd](https://github.com/nicehash/7-Zip-zstd) instead of stock 7-Zip.
+- **7z.dll** — either from stock [7-Zip](https://7-zip.org/) or from [7-Zip-zstd](https://github.com/mcmilk/7-Zip-zstd) (recommended). Stock 7-Zip supports all archive formats and built-in codecs (LZMA, LZMA2, PPMd, BZip2, Deflate). 7-Zip-zstd is a fork that adds **Zstd, Brotli, LZ4, LZ5, Lizard, and Fast LZMA2** codecs. CI tests run against the 7-Zip-zstd build.
 
 ## Quick Start
 
@@ -524,4 +523,4 @@ LZMA2 is the only 7-Zip encoder that implements `ISequentialOutStream`, which wo
 
 Zeven is licensed under the [MIT License](LICENSE).
 
-**7-Zip notice:** Zeven dynamically loads `7z.dll` at runtime but does not include or distribute it. 7-Zip is licensed under [LGPL-2.1](https://www.7-zip.org/license.txt) with portions under BSD-3-Clause and the unRAR restriction. [7-Zip-zstd](https://github.com/nicehash/7-Zip-zstd) is also LGPL-2.1. Users are responsible for complying with 7-Zip's license when distributing `7z.dll` alongside their applications.
+**7-Zip notice:** Zeven dynamically loads `7z.dll` at runtime but does not include or distribute it. 7-Zip is licensed under [LGPL-2.1](https://www.7-zip.org/license.txt) with portions under BSD-3-Clause and the unRAR restriction. [7-Zip-zstd](https://github.com/mcmilk/7-Zip-zstd) is also LGPL-2.1. Users are responsible for complying with 7-Zip's license when distributing `7z.dll` alongside their applications.
